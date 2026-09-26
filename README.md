@@ -1,5 +1,10 @@
 # 青简 Qingjian
 
+> **本仓库是 [qingjian-team/qingjian](https://github.com/qingjian-team/qingjian) 的 fork，`german` 分支加了德语支持。**
+> 德语支持的全部成果 —— 204,594 条汉德释义表（覆盖词库 99.2%）、德语词汇等级表、生成工具、
+> 构建与部署文档 —— 都在 [`german/`](german/README.md)。Release 里有打包好的
+> [`glossary-de.qj`](https://github.com/aolingge/qingjian-german/releases/latest/download/glossary-de.qj) 下载即用。
+
 > 输入的不只是文字。
 
 青简（Qingjian）是一个使用 **Rust** 开发的跨平台输入法。

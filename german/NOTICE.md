@@ -32,3 +32,7 @@
 
 ⚠️ 词表文件必须是 **UTF-8 无 BOM + LF**：带 BOM 会让青简报 `load glossary: line 1: missing senses`
 并导致整个词库装配失败。
+## 关于仓库里的两份原始数据
+
+`handedict.u8` 与 `german-nouns.csv` 在上游是 CRLF 行尾，本仓库里按 LF 存放（`german/.gitattributes` 声明）——
+内容一致，只是行尾不同；解析脚本按行读，不受影响。`.qj` / `.u8` 已标记为二进制，不会被任何转换破坏。
