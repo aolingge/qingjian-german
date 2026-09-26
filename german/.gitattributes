@@ -1,0 +1,6 @@
+# 让 german/ 下的文件在别人的机器上也按 LF 落盘：
+# 青简的释义表解析按行读，CRLF 会把 \r 带进释义文本；.qj / .u8 是二进制，禁止任何转换。
+* text=auto eol=lf
+*.qj binary
+*.u8 binary
+*.ico binary

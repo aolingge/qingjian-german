@@ -1,0 +1,422 @@
+diff --git a/.cargo/config.toml b/.cargo/config.toml
+index 68effef..66493d3 100644
+--- a/.cargo/config.toml
++++ b/.cargo/config.toml
+@@ -1,8 +1,23 @@
+ # Windows 静态链接 CRT：Rust 缺省动态链 vcruntime140.dll，它不随 Windows 自带，
+ # 且 AppContainer 进程（任务栏搜索等）能否读到 System32 里那份取决于别的安装程序留下的 ACL，
+ # 读不到时 TSF DLL 整个加载失败、系统切回上一个输入法。静态链接后只依赖系统自带的 DLL。
++# 本机没有装 Windows SDK，导入库是从 NuGet 的 Microsoft.Windows.SDK.CPP 里取出来放进
++# E:\codemain\qingjian-de\sdklib\{x64,x86} 的（见 E:\codemain\qingjian-de\build-x64.cmd）。
++# 这里写 link.exe 的绝对路径有两个原因：
++#   1) 让 PATH 上按名字找到的 link.exe 去链时，每条 x64 链接都报 LNK4272「库计算机类型 x86
++#      与目标 x64 冲突」并留下 145 个未解析符号；用绝对路径调同一个 link.exe 就正常。
++#   2) 不能用 .cmd 包一层：rustc 会把 /LIBPATH:C:\Program Files (x86)\... 这类参数原样交给
++#      cmd.exe 重新解析，括号会被当成命令块，报 "\Microsoft was unexpected at this time."。
+ [target.x86_64-pc-windows-msvc]
+ rustflags = ["-C", "target-feature=+crt-static"]
++linker = "E:\\codemain\\qingjian-de\\linkwrap.cmd"
+ 
++# i686（32 位 TSF DLL）：LIB 里放的是 x64 的库（cargo 给宿主编译 build script / proc-macro
++# 时要用它），目标自己的 x86 库必须用 /LIBPATH 显式给出 —— link.exe 先查 /LIBPATH 再查 LIB。
++# 反过来把 LIB 设成 x86 会让宿主的 x64 build script 链接全部报 LNK4272 + LNK1120。
+ [target.i686-pc-windows-msvc]
+-rustflags = ["-C", "target-feature=+crt-static"]
++rustflags = [
++    "-C", "target-feature=+crt-static",
++    "-C", "link-arg=/LIBPATH:E:\\codemain\\qingjian-de\\sdklib\\x86",
++    "-C", "link-arg=/LIBPATH:C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\lib\\x86",
++]
+diff --git a/apps/cli/src/args.rs b/apps/cli/src/args.rs
+index 812d567..367d84b 100644
+--- a/apps/cli/src/args.rs
++++ b/apps/cli/src/args.rs
+@@ -41,7 +41,7 @@ pub struct Args {
+     #[arg(long)]
+     pub glossary: Option<PathBuf>,
+ 
+-    /// 学习语言：en / ja / es。也可用环境变量 QINGJIAN_LEARNING_LANGUAGE
++    /// 学习语言：en / ja / es / de（off 关掉译文）。也可用环境变量 QINGJIAN_LEARNING_LANGUAGE
+     #[arg(long, env = "QINGJIAN_LEARNING_LANGUAGE", default_value = "en")]
+     pub language: String,
+ 
+diff --git a/apps/cli/src/error.rs b/apps/cli/src/error.rs
+index e704dbf..48ae660 100644
+--- a/apps/cli/src/error.rs
++++ b/apps/cli/src/error.rs
+@@ -19,8 +19,8 @@ pub enum CliError {
+     #[error(transparent)]
+     Learning(#[from] LearningError),
+ 
+-    /// 学习语言不是 en / ja / es。
+-    #[error("learning language must be en, ja or es, got {0:?}")]
++    /// 学习语言不是 en / ja / es / de。
++    #[error("learning language must be en, ja, es or de, got {0:?}")]
+     Language(String),
+ 
+     #[error(transparent)]
+diff --git a/apps/linux/server/src/assembly/mod.rs b/apps/linux/server/src/assembly/mod.rs
+index 3df81a3..3a0b815 100644
+--- a/apps/linux/server/src/assembly/mod.rs
++++ b/apps/linux/server/src/assembly/mod.rs
+@@ -137,7 +137,12 @@ fn load_vocabulary(user_dir: &Path, levels_dir: Option<&Path>) -> VocabularyBook
+     let Some(levels_dir) = levels_dir else {
+         return vocabulary;
+     };
+-    for language in [Language::English, Language::Japanese, Language::Spanish] {
++    for language in [
++        Language::English,
++        Language::Japanese,
++        Language::Spanish,
++        Language::German,
++    ] {
+         let path = levels_dir.join(format!("levels-{}.tsv", language.code()));
+         if !path.is_file() {
+             continue;
+diff --git a/apps/macos/src/host/mod.rs b/apps/macos/src/host/mod.rs
+index d6eadf8..9e1998c 100644
+--- a/apps/macos/src/host/mod.rs
++++ b/apps/macos/src/host/mod.rs
+@@ -204,8 +204,12 @@ const UPDATE_STATE_FILE: &str = "update.json";
+ const VOCABULARY_FILE: &str = "user-vocab.tsv";
+ 
+ /// 可能打进包里的释义表语言，按这个顺序在设置里列出；文件不存在的不列。
+-const GLOSSARY_LANGUAGES: [Language; 3] =
+-    [Language::English, Language::Japanese, Language::Spanish];
++const GLOSSARY_LANGUAGES: [Language; 4] = [
++    Language::English,
++    Language::Japanese,
++    Language::Spanish,
++    Language::German,
++];
+ 
+ /// 在单例上执行操作。未初始化、不在主线程、或正处在另一次 `with` 之内（重入）时返回 `None`。
+ ///
+diff --git a/apps/macos/src/preferences/controls.rs b/apps/macos/src/preferences/controls.rs
+index 35174ce..3f2074a 100644
+--- a/apps/macos/src/preferences/controls.rs
++++ b/apps/macos/src/preferences/controls.rs
+@@ -30,6 +30,7 @@ pub(super) fn language_label(language: Language) -> &'static str {
+         Language::English => "英语",
+         Language::Japanese => "日语",
+         Language::Spanish => "西班牙语",
++        Language::German => "德语",
+     }
+ }
+ 
+diff --git a/apps/windows/server/build.rs b/apps/windows/server/build.rs
+index fbe2ee2..c41b666 100644
+--- a/apps/windows/server/build.rs
++++ b/apps/windows/server/build.rs
+@@ -32,8 +32,13 @@ fn main() {
+ #[cfg(windows)]
+ fn embed_icon() {
+     const ICON: &str = "../tsf/resources/qingjian.ico";
++    // build.rs 的工作目录不保证是 crate 根，相对路径会找不到图标（os error 3）；用 CARGO_MANIFEST_DIR 拼绝对路径。
++    let icon = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(ICON);
+     println!("cargo:rerun-if-changed={ICON}");
+-    if let Err(error) = winresource::WindowsResource::new().set_icon(ICON).compile() {
++    if let Err(error) = winresource::WindowsResource::new()
++        .set_icon(icon.to_string_lossy().as_ref())
++        .compile()
++    {
+         println!("cargo:warning=嵌入 Server 图标失败: {error}");
+     }
+ }
+diff --git a/apps/windows/server/src/assembly/mod.rs b/apps/windows/server/src/assembly/mod.rs
+index c5fcd98..2ae5995 100644
+--- a/apps/windows/server/src/assembly/mod.rs
++++ b/apps/windows/server/src/assembly/mod.rs
+@@ -171,7 +171,12 @@ fn load_vocabulary(user_dir: &Path, levels_dir: Option<&Path>) -> VocabularyBook
+     let Some(levels_dir) = levels_dir else {
+         return vocabulary;
+     };
+-    for language in [Language::English, Language::Japanese, Language::Spanish] {
++    for language in [
++        Language::English,
++        Language::Japanese,
++        Language::Spanish,
++        Language::German,
++    ] {
+         let path = levels_dir.join(format!("levels-{}.tsv", language.code()));
+         if !path.is_file() {
+             continue;
+diff --git a/apps/windows/server/src/dispatch/composed/mod.rs b/apps/windows/server/src/dispatch/composed/mod.rs
+index 221366c..f64d65a 100644
+--- a/apps/windows/server/src/dispatch/composed/mod.rs
++++ b/apps/windows/server/src/dispatch/composed/mod.rs
+@@ -2,7 +2,7 @@
+ 
+ mod state;
+ 
+-use qingjian_core::{Candidate, CandidateLayout, CandidateList, CloudWord, Query};
++use qingjian_core::{Candidate, CandidateLayout, CandidateList, CloudWord, Language, Query};
+ use qingjian_platform::protocol::{Frame, PROTOCOL_VERSION, PreeditKind, PreeditSegment};
+ 
+ pub(super) use self::state::{Composed, TypedKeys};
+@@ -172,7 +172,11 @@ impl Router {
+         self.raw_frame()
+     }
+ 
+-    /// 协议比 Server 老的 DLL 不认识 `AuxCode` 段，收到会整条消息解析失败；给它的码段降级成普通拼音段。
++    /// 协议比 Server 老的 DLL 不认识 `AuxCode` 段 / 新加的 [`Language`] 变体，收到会整条消息解析失败
++    /// （帧里 `Candidate::translation` 的语言序列化成 `"German"`，老 DLL 的枚举只有中英日西，报
++    /// `unknown variant \`German\``，整条消息废掉、按键直接放行），所以按老协议降级两处：
++    /// 码段降级成普通拼音段；译文里的语言记号标成它认识的英语——**只是记号**，译文文本本身照旧是德语，
++    /// DLL 是纯渲染端、不读这个字段（候选窗由 Server 自绘）。
+     fn downgrade_for_old_dll(&self, frame: &mut Frame) {
+         if self.focused_dll_protocol() >= PROTOCOL_VERSION {
+             return;
+@@ -182,6 +186,14 @@ impl Router {
+                 segment.kind = PreeditKind::Typed;
+             }
+         }
++        for candidate in &mut frame.candidates.items {
++            let Some(translation) = candidate.translation.as_mut() else {
++                continue;
++            };
++            if translation.language == Language::German {
++                translation.language = Language::English;
++            }
++        }
+     }
+ 
+     /// 焦点会话的 DLL 协议版本；没有焦点会话时按最新（不必降级）。
+diff --git a/apps/windows/settings/build.rs b/apps/windows/settings/build.rs
+index 8e1da81..714a422 100644
+--- a/apps/windows/settings/build.rs
++++ b/apps/windows/settings/build.rs
+@@ -18,8 +18,13 @@ fn main() {
+ #[cfg(windows)]
+ fn embed_icon() {
+     const ICON: &str = "../tsf/resources/qingjian.ico";
++    // build.rs 的工作目录不保证是 crate 根，相对路径会找不到图标（os error 3）；用 CARGO_MANIFEST_DIR 拼绝对路径。
++    let icon = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(ICON);
+     println!("cargo:rerun-if-changed={ICON}");
+-    if let Err(error) = winresource::WindowsResource::new().set_icon(ICON).compile() {
++    if let Err(error) = winresource::WindowsResource::new()
++        .set_icon(icon.to_string_lossy().as_ref())
++        .compile()
++    {
+         println!("cargo:warning=嵌入设置程序图标失败: {error}");
+     }
+ }
+diff --git a/apps/windows/settings/src/panel/pages/general.rs b/apps/windows/settings/src/panel/pages/general.rs
+index 833d857..be74b93 100644
+--- a/apps/windows/settings/src/panel/pages/general.rs
++++ b/apps/windows/settings/src/panel/pages/general.rs
+@@ -7,10 +7,11 @@ use crate::panel::controls::{feedback, field, index_of, page};
+ use crate::panel::{Message, Settings};
+ 
+ /// 学习语言：界面名 + 配置写法。
+-pub(crate) const LANGUAGES: [(&str, &str); 4] = [
++pub(crate) const LANGUAGES: [(&str, &str); 5] = [
+     ("英语", "en"),
+     ("日语", "ja"),
+     ("西班牙语", "es"),
++    ("德语", "de"),
+     ("不显示译文", "off"),
+ ];
+ 
+diff --git a/apps/windows/settings/src/panel/pages/usage.rs b/apps/windows/settings/src/panel/pages/usage.rs
+index 984d784..e91f969 100644
+--- a/apps/windows/settings/src/panel/pages/usage.rs
++++ b/apps/windows/settings/src/panel/pages/usage.rs
+@@ -17,6 +17,7 @@ fn language_name(language: Language) -> &'static str {
+         Language::English => "英语",
+         Language::Japanese => "日语",
+         Language::Spanish => "西班牙语",
++        Language::German => "德语",
+         Language::Chinese => "中文",
+     }
+ }
+diff --git a/crates/qingjian-core/src/candidate/language.rs b/crates/qingjian-core/src/candidate/language.rs
+index cefe4f1..1a587b9 100644
+--- a/crates/qingjian-core/src/candidate/language.rs
++++ b/crates/qingjian-core/src/candidate/language.rs
+@@ -16,6 +16,9 @@ pub enum Language {
+ 
+     /// 西班牙语。
+     Spanish,
++
++    /// 德语。
++    German,
+ }
+ 
+ impl Language {
+@@ -26,6 +29,7 @@ impl Language {
+             Self::English => "en",
+             Self::Japanese => "ja",
+             Self::Spanish => "es",
++            Self::German => "de",
+         }
+     }
+ }
+@@ -43,6 +47,7 @@ impl FromStr for Language {
+             "en" | "english" => Ok(Self::English),
+             "ja" | "jp" | "japanese" => Ok(Self::Japanese),
+             "es" | "es-es" | "spanish" => Ok(Self::Spanish),
++            "de" | "de-de" | "german" | "deutsch" => Ok(Self::German),
+             other => Err(UnknownLanguage(other.to_owned())),
+         }
+     }
+@@ -59,17 +64,21 @@ mod tests {
+         assert_eq!(" es-ES ".parse::<Language>().unwrap(), Language::Spanish);
+         assert_eq!("Spanish".parse::<Language>().unwrap(), Language::Spanish);
+         assert_eq!("zh-cn".parse::<Language>().unwrap(), Language::Chinese);
++        assert_eq!("de".parse::<Language>().unwrap(), Language::German);
++        assert_eq!(" DE-DE ".parse::<Language>().unwrap(), Language::German);
++        assert_eq!("Deutsch".parse::<Language>().unwrap(), Language::German);
+     }
+ 
+     #[test]
+     fn rejects_unknown_codes() {
+-        let error = "de".parse::<Language>().unwrap_err();
+-        assert_eq!(error.0, "de");
++        let error = "fr".parse::<Language>().unwrap_err();
++        assert_eq!(error.0, "fr");
+     }
+ 
+     #[test]
+     fn codes_are_iso_639_1() {
+         assert_eq!(Language::Spanish.code(), "es");
+         assert_eq!(Language::Japanese.code(), "ja");
++        assert_eq!(Language::German.code(), "de");
+     }
+ }
+diff --git a/crates/qingjian-platform/src/protocol/mod.rs b/crates/qingjian-platform/src/protocol/mod.rs
+index 641000e..1273146 100644
+--- a/crates/qingjian-platform/src/protocol/mod.rs
++++ b/crates/qingjian-platform/src/protocol/mod.rs
+@@ -22,7 +22,11 @@ mod session;
+ /// **加枚举变体不在「仍能对话」之列**：`qingjian_core::Candidate` 是线上格式的一部分（见本模块文档），
+ /// 给它加一个 `kind` 变体，老 DLL 解不出来会整条帧失败、按键直接放行——测试时看到的「输入法突然只出英文」
+ /// 就是这么来的（`unknown variant `Code``）。加变体必须同时 +1 并重装 DLL，否则连警告都不会有。
+-pub const PROTOCOL_VERSION: u32 = 7;
++///
++/// v8：`qingjian_core::Language` 加了 `German`（学习语言德语）。老 DLL 的枚举只有中英日西，帧里带
++/// `"German"` 时整条消息解析失败、按键全放行，所以 Server 侧 `downgrade_for_old_dll` 对老 DLL 把
++/// 译文里的语言记号改写成英语（文本照旧），保住「不重装 DLL 也能打字」。
++pub const PROTOCOL_VERSION: u32 = 8;
+ 
+ /// 从哪个协议版本起 DLL 会在 `OpenSession` 后阻塞读一条 [`ServerMessage::SessionOpened`]。
+ /// 门槛是固定值而不是当前版本：以后版本再升，没重启的应用里那些旧 DLL 仍在等这条回包，
+diff --git a/crates/qingjian-predict/src/gloss/prompt.rs b/crates/qingjian-predict/src/gloss/prompt.rs
+index 97967cb..2ead842 100644
+--- a/crates/qingjian-predict/src/gloss/prompt.rs
++++ b/crates/qingjian-predict/src/gloss/prompt.rs
+@@ -15,6 +15,9 @@ const MAX_JAPANESE_CHARS: usize = 16;
+ /// 单条西班牙文译词最多几个字符：西语词比英文长（`restablecimiento`），放宽一点。
+ const MAX_SPANISH_CHARS: usize = 32;
+ 
++/// 单条德文译词最多几个字符：德语复合词也长（`Jahrhundertflut`），比英文放宽。
++const MAX_GERMAN_CHARS: usize = 40;
++
+ pub const ENGLISH_SYSTEM_PROMPT: &str = "你是汉英词典编纂者。给每个中文词写最简短的英文对应词，供拼音输入法在候选词旁边一行显示，所以只要词、不要解释。\n\
+ 规则：\n\
+ - pos：这个中文词最主要的词性，只能是 n. v. adj. adv. pron. prep. conj. num. m. part. int. phr. 之一（m. 量词，part. 助词，phr. 短语或成语）。\n\
+@@ -39,11 +42,21 @@ pub const SPANISH_SYSTEM_PROMPT: &str = "你是汉西词典编纂者。给每个
+ 输出严格的 JSON：{\"items\":[{\"w\":\"开发\",\"pos\":\"v.\",\"senses\":[{\"t\":\"desarrollar\"},{\"t\":\"explotar\"}]}]}。\n\
+ items 与输入的词一一对应、顺序一致、每个词恰好一项，w 必须原样照抄输入的词。";
+ 
++pub const GERMAN_SYSTEM_PROMPT: &str = "你是汉德词典编纂者。给每个中文词写最简短的德文对应词，供拼音输入法在候选词旁边一行显示，所以只要词、不要解释。\n\
++规则：\n\
++- pos：这个中文词最主要的词性，只能是 n. v. adj. adv. pron. prep. conj. num. m. part. int. phr. 之一（m. 量词，part. 助词，phr. 短语或成语）。\n\
++- senses：1 到 2 条最贴切的德文对应词，按常用度排；每条不超过 3 个德文单词；名词首字母大写、一般用单数，动词用不定式；不要括号、不要解释、不要例句。\n\
++- 保留德语变音字母和 ß（ä ö ü Ä Ö Ü ß），不要改写成 ae/oe/ue/ss。\n\
++- 人名地名等专名照译；多义词只取最常用的义项；网络用语、方言也要给最接近的说法；没有把握也要给最可能的答案，不要留空。\n\
++输出严格的 JSON：{\"items\":[{\"w\":\"开发\",\"pos\":\"v.\",\"senses\":[{\"t\":\"entwickeln\"},{\"t\":\"erschließen\"}]}]}。\n\
++items 与输入的词一一对应、顺序一致、每个词恰好一项，w 必须原样照抄输入的词。";
++
+ /// 学习语言对应的系统提示；中文没有（不会请求）。
+ pub fn system_prompt(language: Language) -> &'static str {
+     match language {
+         Language::Japanese => JAPANESE_SYSTEM_PROMPT,
+         Language::Spanish => SPANISH_SYSTEM_PROMPT,
++        Language::German => GERMAN_SYSTEM_PROMPT,
+         Language::English | Language::Chinese => ENGLISH_SYSTEM_PROMPT,
+     }
+ }
+@@ -148,17 +161,31 @@ fn clean_text(raw: &str, language: Language) -> Option<String> {
+                 && text.split_whitespace().count() <= 4
+                 && text.chars().all(is_spanish_char)
+         }
++        Language::German => {
++            text.chars().count() <= MAX_GERMAN_CHARS
++                && text.split_whitespace().count() <= 4
++                && !text.contains(['(', '（'])
++                && text.chars().all(is_german_char)
++        }
+         Language::English | Language::Chinese => {
+             text.len() <= MAX_ENGLISH_BYTES
+                 && text.split_whitespace().count() <= 4
+-                && text
+-                    .chars()
+-                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '\'' | '.' | '/'))
++                && text.chars().all(is_english_char)
+         }
+     };
+     ok.then(|| text.to_owned())
+ }
+ 
++/// 英文译词认得的字符：纯 ASCII 字母数字加常见的连接符。
++fn is_english_char(c: char) -> bool {
++    c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '\'' | '.' | '/')
++}
++
++/// 德文译词认得的字符：ASCII 字母数字加德语变音字母和 ß（大写 ẞ 在 0x1E9E）。
++fn is_german_char(c: char) -> bool {
++    is_english_char(c) || matches!(c, 'ä' | 'ö' | 'ü' | 'Ä' | 'Ö' | 'Ü' | 'ß' | 'ẞ')
++}
++
+ /// 西班牙文译词认得的字符：ASCII 字母数字加西语用的拉丁扩展字母（á é í ó ú ü ñ 等）。
+ /// 只认字母，避免把汉字或西里尔字母当成译词收进来。
+ fn is_spanish_char(c: char) -> bool {
+@@ -244,4 +271,47 @@ mod tests {
+         assert_eq!(clean_text("разработка", Language::Spanish), None);
+         assert!(system_prompt(Language::Spanish).contains("西班牙文"));
+     }
++
++    #[test]
++    fn german_keeps_umlauts_and_eszett() {
++        let words = vec!["椅子".to_owned(), "水".to_owned()];
++        let content = r#"{"items":[
++            {"w":"椅子","pos":"n.","senses":[{"t":"Stuhl"},{"t":"Sessel (mit Armlehnen)"},{"t":"Sitzgelegenheit für eine Person"}]},
++            {"w":"水","pos":"n.","senses":[{"t":"Wasser"},{"t":"Gewässer"}]}
++        ]}"#;
++        let filled = parse_reply(content, Language::German, &words);
++        assert_eq!(filled.len(), 2);
++        assert_eq!(filled[0].translation.language, Language::German);
++        // 带括号的释义丢掉，纯词条的留下（最多两条）。
++        assert_eq!(
++            filled[0]
++                .translation
++                .senses()
++                .iter()
++                .map(|sense| sense.text.as_str())
++                .collect::<Vec<_>>(),
++            vec!["Stuhl", "Sitzgelegenheit für eine Person"]
++        );
++        assert!(filled[1]
++            .translation
++            .senses()
++            .iter()
++            .any(|sense| sense.text == "Gewässer"));
++        assert_eq!(
++            clean_text("Flüsse.", Language::German).as_deref(),
++            Some("Flüsse")
++        );
++        assert_eq!(
++            clean_text("Überraschung", Language::German).as_deref(),
++            Some("Überraschung")
++        );
++        assert_eq!(
++            clean_text("Straße", Language::German).as_deref(),
++            Some("Straße")
++        );
++        assert_eq!(clean_text("开发", Language::German), None);
++        assert_eq!(clean_text("разработка", Language::German), None);
++        assert!(system_prompt(Language::German).contains("德文"));
++        assert_eq!(system_prompt(Language::German), GERMAN_SYSTEM_PROMPT);
++    }
+ }

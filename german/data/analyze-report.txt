@@ -1,0 +1,92 @@
+HanDeDict 简化字词条：159030
+现有德语表行数：157162
+现有表有、HanDeDict 没有的词：0  例：[]
+
+现有表首个义项在 HanDeDict 中的位置：
+  empty: 79
+  index0: 153579
+  index1: 2297
+  index10: 3
+  index11: 2
+  index12: 1
+  index16: 1
+  index2: 468
+  index3: 183
+  index4: 69
+  index5: 38
+  index6: 26
+  index7: 16
+  index8: 8
+  index9: 2
+  miss: 390
+
+对不上（前 25 条）——词 / 现有表 / HanDeDict 前 4 个义项：
+  一块石头落了地	v. einen Stein (vom Herzen) fallen lassen	einen Stein (vom Herzen) fallen lassen (V)
+  一次又一次	adv. immer (mal) wieder	immer (mal) wieder (Adv)
+  一氧化二硼	n. Bor(I)-oxid, Bormonoxid	Bor(I)-oxid, Bormonoxid (S, Chem)
+  一氧化硼	n. Bor(II)-oxid	Bor(II)-oxid (S, Chem)
+  一氧化钴	n. Cobalt(II)-oxid, Cobaltmonoxid, Cobaltschwarz	Cobalt(II)-oxid, Cobaltmonoxid, Cobaltschwarz (S, Chem)
+  一氧化铅	n. Blei(II)-oxid, Bleimonoxid	Blei(II)-oxid, Bleimonoxid (S, Chem)
+  一氧化锡	n. Zinn(II)-oxid, Zinnmonoxid	Zinn(II)-oxid, Zinnmonoxid (S, Chem)
+  一氧化锰	n. Mangan(II)-oxid, Manganoxid, Manganmonoxid, Mangangrün	Mangan(II)-oxid, Manganoxid, Manganmonoxid, Mangangrün (S, Chem)
+  一氧化镍	n. Nickel(II)-oxid, Nickelmonoxid	Nickel(II)-oxid, Nickelmonoxid (S, Chem)
+  一硫化铂	n. Platin(II)-sulfid, Platinmonosulfid	Platin(II)-sulfid, Platinmonosulfid (S, Chem)
+  七氧化二锰	n. Mangan(VII)-oxid, Dimanganheptoxid	Mangan(VII)-oxid, Dimanganheptoxid (S, Chem)
+  三国	n. Sanguo Dynastie (220 - 265(280) n.Chr.)	Sanguo Dynastie (220 - 265(280) n.Chr.) (S, Gesch) | Zeit der drei Reiche (Wei, Shu und Wu) (S, Gesch)
+  三氟化砷	n. Arsen(III)-fluorid, Arsentrifluorid	Arsen(III)-fluorid, Arsentrifluorid (S, Chem)
+  三氟化铈	n. Cer(III)-fluorid, Cerfluorid	Cer(III)-fluorid, Cerfluorid (S, Chem)
+  三氟化铋	n. Bismut(III)-fluorid, Bismuttrifluorid	Bismut(III)-fluorid, Bismuttrifluorid (S, Chem)
+  三氧化二铈	n. Cer(III)-oxid, Dicertrioxid	Cer(III)-oxid, Dicertrioxid (S, Chem)
+  三氧化二铋	n. Bismut(III)-oxid, Dibismuttrioxid, Wismutoxid	Bismut(III)-oxid, Dibismuttrioxid, Wismutoxid (S, Chem)
+  三氧化二铬	n. Chrom(III)-oxid, Chromoxid	Chrom(III)-oxid, Chromoxid (S, Chem)
+  三氧化二锰	n. Mangan(III)-oxid, Dimangantrioxid, Mangansesquioxid	Mangan(III)-oxid, Dimangantrioxid, Mangansesquioxid (S, Chem)
+  三氧化二镍	n. Nickel(III)-oxid, Nickelsesquioxid	Nickel(III)-oxid, Nickelsesquioxid (S, Chem)
+  三氧化氙	n. Xenon(VI)-oxid, Xenontrioxid	Xenon(VI)-oxid, Xenontrioxid (S, Chem)
+  三氧化钨	n. Wolfram(VI)-oxid, Wolframtrioxid	Wolfram(VI)-oxid, Wolframtrioxid (S, Chem)
+  三氧化钼	n. Molybdän(VI)-oxid, Molybdäntrioxid	Molybdän(VI)-oxid, Molybdäntrioxid (S, Chem)
+  三氧化铀	n. Uran(VI)-oxid, Urantrioxid	Uran(VI)-oxid, Urantrioxid (S, Chem)
+  三氧化铬	n. Chrom(VI)-oxid, Chromtrioxid	Chrom(VI)-oxid, Chromtrioxid (S, Chem)
+
+释义长度：平均 21.1  最大 104
+    0-7: 14375
+    8-15: 49661
+   16-23: 42113
+   24-31: 23503
+   32-39: 13094
+   40-47: 6800
+   48-55: 3508
+   56-63: 1931
+   64-71: 2177
+含括号 24948 / 含分号 885 / 含逗号 29201
+
+抽查：
+  便宜
+    现有: adj. geeignet
+    原始: geeignet (Adj) | billig; preiswert (Adj); Bsp.: 便宜貨 便宜货 -- billige Waren; Bsp.: 今天牛肉很便宜。 今天牛肉很便宜。 -- Heute ist Rindfleisch sehr billig. | kleiner Vorteil; winziger Gewinn (S); Bsp.: 貪便宜 贪便宜 -- auf kleine Vorteile scharf sein | jmdn. glimpflich davonkommen lassen (V); Bsp.: 這次就便宜了他吧。 这次就便宜了他吧。 -- Diesmal lassen wir ihn glimpflich davonkommen.
+  中国
+    现有: China
+    原始: China (Eig, Geo); Bsp.: 中國大陸 中国大陆 -- chinesisches Festland; Bsp.: 中國公民 中国公民 -- chinesischer Staatsbürger; Bsp.: 你去過中國嗎？ 你去过中国吗？ -- Bist du schon mal in China gewesen?
+  电话
+    现有: n. Anruf, Telefongespräch, Telefon...
+    原始: Anruf, Telefongespräch, Telefon... (S)
+  谢谢
+    现有: v. danken (V); danke; vielen Dank
+    原始: danken (V); danke; vielen Dank (Int); Bsp.: 謝謝，不客氣。 谢谢，不客气。 -- Danke, gern geschehen.
+  东西
+    现有: n. Sache; Ding
+    原始: Sache; Ding (S); Bsp.: 買東西 买东西 -- einkaufen gehen; Bsp.: 搬弄桌子上東西 搬弄桌子上东西 -- mit den Sachen auf dem Tisch herumhantieren; Bsp.: 這件東西一起多少錢？ 这件东西一起多少钱？ -- Was kostet das alles zusammen? | östlich und westlich (Adj), Ost und West (S) | von Ost bis West (Redew)
+  打假
+    现有: v. gegen Markenpiraterie vorgehen
+    原始: gegen Markenpiraterie vorgehen (V, Wirtsch)
+  大家
+    现有: pron. jeder, jedermann, alle
+    原始: jeder, jedermann, alle (Pron); Bsp.: 大家好 大家好 -- Hallo alle miteinander! | gesamte Familie (S)
+  汽车
+    现有: n. Auto, Wagen, Kraftwagen, Automobil, Kraftfahrzeug
+    原始: Auto, Wagen, Kraftwagen, Automobil, Kraftfahrzeug (S, Kfz)
+  手机
+    现有: n. Mobiltelefon; Handy
+    原始: Mobiltelefon; Handy (S, Tech); Bsp.: 手機卡 手机卡 -- SIM-Karte; Bsp.: 你可以用我的手機。 你可以用我的手机。 -- Du kannst mein Telefon benutzen.
+  银行
+    现有: n. Bank
+    原始: Bank (S, Wirtsch); Bsp.: 世界銀行 世界银行 -- Weltbank; Bsp.: 中國人民銀行 中国人民银行 -- Chinesische Volksbank; Bsp.: 最近的銀行在哪兒？ 最近的银行在哪儿？ -- Wo ist die nächstgelegene Bank?

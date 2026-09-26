@@ -1,0 +1,23 @@
+# Windows 静态链接 CRT：Rust 缺省动态链 vcruntime140.dll，它不随 Windows 自带，
+# 且 AppContainer 进程（任务栏搜索等）能否读到 System32 里那份取决于别的安装程序留下的 ACL，
+# 读不到时 TSF DLL 整个加载失败、系统切回上一个输入法。静态链接后只依赖系统自带的 DLL。
+# 本机没有装 Windows SDK，导入库是从 NuGet 的 Microsoft.Windows.SDK.CPP 里取出来放进
+# E:\codemain\qingjian-de\sdklib\{x64,x86} 的（见 E:\codemain\qingjian-de\build-x64.cmd）。
+# 这里写 link.exe 的绝对路径有两个原因：
+#   1) 让 PATH 上按名字找到的 link.exe 去链时，每条 x64 链接都报 LNK4272「库计算机类型 x86
+#      与目标 x64 冲突」并留下 145 个未解析符号；用绝对路径调同一个 link.exe 就正常。
+#   2) 不能用 .cmd 包一层：rustc 会把 /LIBPATH:C:\Program Files (x86)\... 这类参数原样交给
+#      cmd.exe 重新解析，括号会被当成命令块，报 "\Microsoft was unexpected at this time."。
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+linker = "E:\\codemain\\qingjian-de\\linkwrap.cmd"
+
+# i686（32 位 TSF DLL）：LIB 里放的是 x64 的库（cargo 给宿主编译 build script / proc-macro
+# 时要用它），目标自己的 x86 库必须用 /LIBPATH 显式给出 —— link.exe 先查 /LIBPATH 再查 LIB。
+# 反过来把 LIB 设成 x86 会让宿主的 x64 build script 链接全部报 LNK4272 + LNK1120。
+[target.i686-pc-windows-msvc]
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=/LIBPATH:E:\\codemain\\qingjian-de\\sdklib\\x86",
+    "-C", "link-arg=/LIBPATH:C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\lib\\x86",
+]

@@ -1,0 +1,87 @@
+名词表：90993 条  {'无性': 10380, '性冲突': 544}
+处理统计：{'非 n. 行': 72064, '加冠词': 43991, '片段非单词': 15656, '查不到': 36378, '片段多词': 4517, '缩略语': 530}
+改动行数：38241 / 38241 行有释义
+
+抽样（前 60 条改动）：
+  100年一遇的洪水	n. Jahrhundertflut	→	n. die Jahrhundertflut
+  100米赛跑	n. 100-Meter-Lauf, Hundertmeterlauf	→	n. 100-Meter-Lauf, der Hundertmeterlauf
+  1024字节	n. Kilobyte (Symbol KB)	→	n. das Kilobyte (Symbol KB)
+  10月	n. Oktober	→	n. der Oktober
+  10月31日	n. Reformationstag	→	n. der Reformationstag
+  10进制	n. Dezimalsystem	→	n. das Dezimalsystem
+  11月	n. November	→	n. der November
+  12月	n. Dezember	→	n. der Dezember
+  1月	n. Januar	→	n. der Januar
+  1欧元职位	n. Ein-Euro-Job	→	n. der Ein-Euro-Job
+  2月	n. Februar	→	n. der Februar
+  3月	n. März	→	n. der März
+  4月	n. April	→	n. der April
+  4氨基丁酸	n. 4-Aminobuttersäure, 4-Aminobutansäure, Piperidinsäure	→	n. 4-Aminobuttersäure, 4-Aminobutansäure, die Piperidinsäure
+  502胶	n. Sekundenkleber	→	n. der Sekundenkleber
+  5分硬币	n. Fünfcentstück	→	n. das Fünfcentstück
+  5月	n. Mai	→	n. der Mai
+  6月	n. Juni	→	n. der Juni
+  7月	n. Juli	→	n. der Juli
+  8月	n. August	→	n. der August
+  8滚筒	n. Achtzylinder	→	n. der Achtzylinder
+  9月	n. September	→	n. der September
+  A大调	n. A-Dur	→	n. das A-Dur
+  A柱	n. A-Säule	→	n. die A-Säule
+  A片	n. Pornofilm, Film für Erwachsene (A=Adults)	→	n. der Pornofilm, Film für Erwachsene (A=Adults)
+  B大调	n. H-Dur	→	n. das H-Dur
+  B柱	n. B-Säule	→	n. die B-Säule
+  CD刻录机	n. CD-Brenner	→	n. der CD-Brenner
+  CD播放机	n. CD-Player	→	n. der CD-Player
+  CT机	n. Computertomograf	→	n. der Computertomograf
+  Ct扫描仪	n. Computertomograf, CT, CT-Scanner	→	n. der Computertomograf, CT, CT-Scanner
+  Ct机	n. Computertomograph, CT	→	n. der Computertomograph, CT
+  C大调	n. C-Dur	→	n. das C-Dur
+  C柱	n. C-Säule	→	n. die C-Säule
+  DM单	n. Broschüre	→	n. die Broschüre
+  DNA分析	n. DNA-Analyse	→	n. die DNA-Analyse
+  DVD播放机	n. DVD-Player, DVD-Spieler	→	n. der DVD-Player, der DVD-Spieler
+  D日	n. D-Day	→	n. der D-Day
+  IC卡	n. Chipkarte	→	n. die Chipkarte
+  IP地址	n. IP-Adresse	→	n. die IP-Adresse
+  IP电话	n. Internettelefonie	→	n. die Internettelefonie
+  ISBN国际标准书号	n. ISBN-Nummer	→	n. die ISBN-Nummer
+  KZ纪念广场	n. KZ-Gedenkstätte	→	n. die KZ-Gedenkstätte
+  Led光发射二极管	n. Leuchtdiode	→	n. die Leuchtdiode
+  N乙酰神经氨酸	n. N-Acetylneuraminsäure, Sialinsäure, Lactaminsäure	→	n. die N-Acetylneuraminsäure, die Sialinsäure, Lactaminsäure
+  SIM卡	n. SIM-Karte (Lehnwort)	→	n. die SIM-Karte (Lehnwort)
+  T恤	n. T-Shirt	→	n. das T-Shirt
+  T恤衫	n. T-Shirt	→	n. das T-Shirt
+  T细胞	n. T-Lymphozyt, T-Zelle	→	n. der T-Lymphozyt, die T-Zelle
+  U池	n. Halfpipe	→	n. die Halfpipe
+  V形皮带	n. Keilriemen	→	n. der Keilriemen
+  X光	n. Röntgen	→	n. das Röntgen
+  X光检查	n. Durchleuchtung	→	n. die Durchleuchtung
+  X光照片	n. Röntgenaufnahme	→	n. die Röntgenaufnahme
+  X射线	n. Röntgenstrahlung (English: X-Ray)	→	n. die Röntgenstrahlung (English: X-Ray)
+  X射线天文学	n. Röntgenastronomie	→	n. die Röntgenastronomie
+  X射线断层成像	n. Computertomographie	→	n. die Computertomographie
+  X射线断层扫描仪	n. Computertomograf, CT	→	n. der Computertomograf, CT
+  X染色体	n. X-Chromosom	→	n. das X-Chromosom
+  X线	n. Röntgenstrahl, Röntgenstrahlung	→	n. der Röntgenstrahl, die Röntgenstrahlung
+
+抽样（改动里最长的 20 条）：
+  收益	n. Ausbeute, Nutzung, Gewinn, Einkünfte, Einnahmen, Einkommen, Verdienst, Erlös, Abwurf	→	n. die Ausbeute, die Nutzung, der Gewinn, Einkünfte, Einnahmen, das Einkommen, der Verdienst, der Erlös, der Abwurf
+  学科	n. wissenschaftliches Fach, Fachrichtung, Disziplin, Wissenschaftszweig, Studienfach, Lehrfach	→	n. wissenschaftliches Fach, die Fachrichtung, die Disziplin, der Wissenschaftszweig, das Studienfach, das Lehrfach
+  冲突钻石	n. Blutdiamant, Konfliktdiamant (Diamant, mit dessen Erlös gewaltförmige Konflikte finanziert werden)	→	n. der Blutdiamant, der Konfliktdiamant (Diamant, mit dessen Erlös gewaltförmige Konflikte finanziert werden)
+  血钻	n. Blutdiamant, Konfliktdiamant (Diamant, mit dessen Erlös gewaltförmige Konflikte finanziert werden)	→	n. der Blutdiamant, der Konfliktdiamant (Diamant, mit dessen Erlös gewaltförmige Konflikte finanziert werden)
+  血钻石	n. Blutdiamant, Konfliktdiamant (Diamant, mit dessen Erlös gewaltförmige Konflikte finanziert werden)	→	n. der Blutdiamant, der Konfliktdiamant (Diamant, mit dessen Erlös gewaltförmige Konflikte finanziert werden)
+  吸力	n. Anziehungskraft, Gravitation, Anziehung, Saugkraft, Sogkraft, Ziehkraft, Zug, Sog	→	n. die Anziehungskraft, die Gravitation, die Anziehung, die Saugkraft, Sogkraft, Ziehkraft, der Zug, der Sog
+  掠食	n. Prädator (Begriff aus der Ökologie, Lebewesen, welches sich von anderen, lebenden Lebewesen ernährt)	→	n. der Prädator (Begriff aus der Ökologie, Lebewesen, welches sich von anderen, lebenden Lebewesen ernährt)
+  势	n. Kraft, Einfluss, Potential, Moment, Zeichen, Geste, männliche Geschlechtsorgane	→	n. die Kraft, der Einfluss, das Potential, der Moment, das Zeichen, die Geste, männliche Geschlechtsorgane
+  性交	n. Geschlechtsverkehr, Geschlechtsakt, Koitus, Kopulation, Kohabitation, Beischlaf	→	n. der Geschlechtsverkehr, der Geschlechtsakt, der Koitus, die Kopulation, die Kohabitation, der Beischlaf
+  碳酸	n. Kohlensäure (H2CO3), Dihydrogencarbonat, Kohlenstoffsäure, Hydroxyameisensäure, Hydroxymethansäure	→	n. die Kohlensäure (H2CO3), Dihydrogencarbonat, Kohlenstoffsäure, Hydroxyameisensäure, Hydroxymethansäure
+  义工	n. Ehrenamtliche (ohne Entgelt für die Gesellschaft Arbeitende), Sozialarbeiter, freiwilliger Helfer	→	n. die Ehrenamtliche (ohne Entgelt für die Gesellschaft Arbeitende), Sozialarbeiter, freiwilliger Helfer
+  用途	n. Anwendungsbereich, Einsatzmöglichkeit, Einsatzbereich, Verwendungszweck (z. B. bei Überweisungen)	→	n. Anwendungsbereich, Einsatzmöglichkeit, Einsatzbereich, der Verwendungszweck (z. B. bei Überweisungen)
+  航空电子	n. Avionik (Bezeichnung für Gesamtheit aller elektrischen und elektronischen Geräte eines Flugzeugs)	→	n. die Avionik (Bezeichnung für Gesamtheit aller elektrischen und elektronischen Geräte eines Flugzeugs)
+  魅力	n. Attraktivität, Anziehungskraft, Faszination, Reiz, Zauber, Magie, Charme	→	n. die Attraktivität, die Anziehungskraft, die Faszination, der Reiz, der Zauber, die Magie, der Charme
+  个体经济	n. Privatwirtschaft (Bereich der inhabergeführten Einzelunternehmen mit bis zu acht Beschäftigten)	→	n. die Privatwirtschaft (Bereich der inhabergeführten Einzelunternehmen mit bis zu acht Beschäftigten)
+  农林牧副渔各业全面发展	n. Allseitige Entwicklung von Ackerbau, Forstwirtschaft, Viehzucht, Nebengewerbe und Fischerei	→	n. Allseitige Entwicklung von Ackerbau, die Forstwirtschaft, die Viehzucht, Nebengewerbe und Fischerei
+  盟	n. Bund (Verwaltungseinheit im autonomen Gebiet innere Mongolei, einem Provinzbezirk entsprechend)	→	n. der Bund (Verwaltungseinheit im autonomen Gebiet innere Mongolei, einem Provinzbezirk entsprechend)
+  装置	n. Vorrichtung, Anlage, Ausrüstung, Geräte, Gerätschaft, Betriebsmittel, Werkzeuge	→	n. die Vorrichtung, die Anlage, die Ausrüstung, Geräte, die Gerätschaft, das Betriebsmittel, Werkzeuge
+  王八蛋	n. Bastard, Scheißkerl, Saukerl, Schweinehund, Hurensohn, Arschloch (Schimpfwort)	→	n. der Bastard, der Scheißkerl, Saukerl, der Schweinehund, der Hurensohn, das Arschloch (Schimpfwort)
+  倝	n. Anbruch, Beginn, Dämmerung, Morgendämmerung, Morgenrot, Morgenröte (alt)	→	n. der Anbruch, der Beginn, die Dämmerung, die Morgendämmerung, das Morgenrot, die Morgenröte (alt)
