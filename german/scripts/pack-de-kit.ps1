@@ -48,6 +48,12 @@ Copy-One (Join-Path $tools 'de-glossary\llm-fill-all.tsv') (Join-Path $kit 'sour
 Copy-One (Join-Path $tools 'de-glossary\glossary-de-art2.tsv') (Join-Path $kit 'sources') 'glossary-de-art2.tsv'
 Copy-One (Join-Path $tools 'de-glossary\llm-fill-phrase.tsv') (Join-Path $kit 'sources') 'llm-fill-phrase.tsv'
 Copy-One (Join-Path $tools 'de-glossary\NOTES-llm-fill.md') (Join-Path $kit 'sources') 'NOTES-llm-fill.md'
+Copy-One (Join-Path $tools 'de-glossary\glossary-de-final.tsv') (Join-Path $kit 'sources') 'glossary-de-final.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-gap.tsv') (Join-Path $kit 'sources') 'llm-gap.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-articles.tsv') (Join-Path $kit 'sources') 'llm-articles.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-cefr.tsv') (Join-Path $kit 'sources') 'llm-cefr.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-audit.tsv') (Join-Path $kit 'sources') 'llm-audit.tsv'
+Copy-One (Join-Path $tools 'de-glossary\apply-report.txt') (Join-Path $kit 'sources') 'apply-report.txt'
 
 Write-Output '== 3. 德语词汇等级表（生词分级用，放 <安装目录>\assets\levels\）=='
 Copy-One "$Install\assets\levels\levels-de.tsv" (Join-Path $kit 'levels') 'levels-de.tsv'
@@ -60,7 +66,8 @@ Copy-One "$env:APPDATA\Qingjian\config.toml" (Join-Path $kit 'config') 'config.t
 
 Write-Output '== 5. 全部脚本与文档 =='
 foreach ($name in 'build-de.cmd','build-x64.cmd','build-x86.cmd','cli-de.cmd','pack-de.cmd','linkwrap.cmd','test-de.cmd',
-                  'deploy-de.ps1','pack-de-kit.ps1','verify-de.ps1','redeploy-de.ps1','probe-dll.ps1','ocr.ps1','ocr-de.ps1',
+                  'deploy-de.ps1','pack-de-kit.ps1','pack-glossary.ps1','verify-de.ps1','redeploy-de.ps1','probe-dll.ps1',
+                  'selfcheck.ps1','register-selfcheck.ps1','ocr.ps1','ocr-de.ps1',
                   'README.md') {
     Copy-One (Join-Path $tools $name) (Join-Path $kit 'scripts') $name
 }
@@ -69,6 +76,7 @@ if (Test-Path -LiteralPath (Join-Path $tools 'de-glossary')) {
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
     # 只带脚本与报告：gender\nouns.csv（20 MB）与 out\glossary-de.qj 已分别放在 sources\ 与 glossary\
     foreach ($f in Get-ChildItem -LiteralPath (Join-Path $tools 'de-glossary') -Recurse -File) {
+        if ($f.Name.StartsWith('_')) { continue }        # _*.py 是随手写的探针，不进套件
         if ($f.Extension -eq '.py' -or $f.Extension -eq '.txt') {
             Copy-Item -LiteralPath $f.FullName -Destination $dest -Force
             Write-Output ("  {0,-28} {1,12:N0} B  scripts\de-glossary" -f $f.Name, $f.Length)
@@ -115,27 +123,34 @@ $readme = @'
   另外 `qingjian-cli.exe` 是命令行测试工具（`--language de --dict … --glossary … -- 拼音`，
   见 `scripts\README.md` 第四节），`qingjian-dict-convert.exe` 是把 TSV 打成 `.qj` 的官方打包器
   （`pack glossary --input … --language de --name …`）——这两个是从源码重建才有的，放这里免得 %TEMP% 被清。
-- `glossary\glossary-de.qj`：**205,226 条**中文→德语释义（`n. die Schule` / `n. das Auto, der Wagen`），
-  可直接放进 `<安装目录>\data\generated\`。四层来源：① HanDeDict（157,162 条，CC-BY-SA-3.0）② 用
+- `glossary\glossary-de.qj`：**205,333 条**中文→德语释义（`n. die Schule` / `n. das Auto, der Wagen`），
+  15,155,200 B，sha256 `c12f5693f7a13a85427d30d86ab4681289df4a79a2da008e39d9a1c7831054af`，
+  可直接放进 `<安装目录>\data\generated\`。五层来源：① HanDeDict（157,162 条，CC-BY-SA-3.0）② 用
   german-nouns（CC-BY-SA-4.0）给名词补的定冠词（第一轮 38,241 行 + 第二轮 `glossary-de-art2.tsv` 再修 4,876 行）
   ③ 词库里 HanDeDict 没收的 47,432 个词由 DeepSeek `deepseek-v4-flash` 生成（严格轮 `sources\llm-fill.tsv`
   + 放宽轮 `sources\llm-fill2.tsv` → 清洗合并成 `sources\llm-fill-all.tsv`）
   ④ 高频短语 632 条同样由 DeepSeek 补（`sources\llm-fill-phrase.tsv`，含 `--phrase` 短语轮与 `--no-hint` 轮）；
-  脚本 `scripts\de-glossary\{llm_fill,postprocess,merge_glossary,add_articles2,audit}.py`。
+  ⑤ 第四轮质检：`sources\llm-gap.tsv`（147 条缺口词，词库覆盖率补到 100%）、`sources\llm-articles.tsv`（40,643 条冠词判定）、
+  `sources\llm-audit.tsv`（14,646 条质检提议）、`sources\apply-report.txt`（38,885 条落地记录）由
+  `scripts\de-glossary\{llm_tools,apply_fixes,gaps_now,junk_scan}.py` 处理成 `sources\glossary-de-final.tsv`（205,333 行）。
   同目录另有来源文件：`glossary-de-hd.tsv`（无冠词原样转换）、`glossary-de-art.tsv`（第一轮加冠词）、
-  `sources\glossary-de-art2.tsv`（第二轮加冠词）、`sources\glossary-de-merged.tsv`（合并 LLM 条目后、
-  打包 .qj 的真正输入，205,226 行）；`glossary\user-glossary-de.tsv`
-  是**个人释义表**（原样放到 `%APPDATA%\Qingjian\`，个人表优先于随包表，手改单条释义就改它）。
+  `sources\glossary-de-art2.tsv`（第二轮加冠词）、`sources\glossary-de-merged.tsv`（第三轮合并结果，205,226 行）、
+  `glossary\user-glossary-de.tsv` 是**个人释义表**（原样放到 `%APPDATA%\Qingjian\`，
+  个人表优先于随包表，手改单条释义就改它）。
 - `levels\levels-de.tsv`：德语词汇等级表（生词分级），放 `<安装目录>\assets\levels\`。
-  36,560 / 157,163 条释义能定级（23.3%），来源 Goethe-Institut 5,000 词表（MIT，见 `sources\goethe-german-5000.de.tsv`）
-  与 `levels\build_levels_de.py`（后者可重跑）。没有它 → 统计页德语不生词分级，其它一切照常。
+  165,143 条释义能定级（93.3%，A1 27,519 / A2 14,984 / B1 26,921 / B2 36,486 / C1 22,262 / C2 36,971），
+  来源 Goethe-Institut 5,000 词表（MIT，见 `sources\goethe-german-5000.de.tsv`）+ DeepSeek 给 107,687 个德语实词定级，
+  由 `scripts\de-glossary\llm_tools.py levels` 生成（旧的 `levels\build_levels_de.py` 已不用）。
+  没有它 → 统计页德语不生词分级，其它一切照常。
 - `config\config.toml.snapshot`：`learning_language = "de"` 的配置样子（不要整份覆盖，只对照第 5 行等）。
   其中 `[update] check = false` 是**按用户要求关掉的每日更新检查**（青简的更新器本来就只提示、不自动下载安装）。
 - `sources\handedict.u8`：HanDeDict 原始数据（CC-BY-SA 3.0），重建词表用。
 - `sources\qingjian-german.patch`：德语改动相对上游 `40e3e55` 的完整 diff（不含 `german\` 数据目录）。
-  同样的内容已推送到 https://github.com/aolingge/qingjian-german 的 `german` 分支（提交 `977bf9f`），
-  Release `v0.1.5-dev-german` 里挂着同一份 205,226 条的 `glossary-de.qj`。
-- `scripts\`：构建 / 部署 / 验证 / OCR / 协议探针脚本。
+  同样的内容已推送到 https://github.com/aolingge/qingjian-german 的 `german` 分支，
+  Release `v0.1.6-dev-german` 里挂着同一份 205,333 条的 `glossary-de.qj`。
+- `scripts\`：构建 / 部署 / 验证 / OCR / 协议探针脚本；`scripts\pack-glossary.ps1` 是一条命令打包 + 部署 + 打印 sha256。
+- `scripts\selfcheck.ps1` + `scripts\register-selfcheck.ps1`：开机自检（登录后 30 秒跑 `verify-de.ps1`，
+  失败弹窗），已注册成计划任务 `QingjianGermanSelfCheck`；`-Status` 看状态、`-Remove` 卸掉。
 
 ## 重装步骤
 
