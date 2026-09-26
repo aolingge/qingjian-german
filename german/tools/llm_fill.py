@@ -45,6 +45,25 @@ SYSTEM = (
     "8. 输出行数必须与输入词数完全相同，顺序一致。"
 )
 
+# --phrase：这一轮补的多是「你家 / 我爸 / 五年 / 该省」这类短语与固定搭配，规则要另说
+PHRASE_RULES = (
+    "\n【本轮特别说明】输入里很多不是单个词，而是短语、固定搭配或半句话（你家、我爸、五年、"
+    "该国、该省、我们学校、梦里、时候回…）。这类请给出自然的德语对应说法，词性写 phr.，"
+    "例如「你家\tphr. dein Zuhause」、「五年\tphr. fünf Jahre」。\n"
+    "只有确实是单个名词（可数、能带冠词）时才用 n.，并按第 3 条带 der/die/das。\n"
+    "不要为了凑词性把它硬说成名词，也不要输出句号结尾的完整句子。"
+)
+
+EXTRA_RULES = ""   # --phrase 时指向 PHRASE_RULES
+USE_HINTS = True   # --no-hint 时不吃英语提示（英语提示会让模型直接照抄，如「生死 → life and death」）
+
+# 「你家 → dein Zuhause」「五年 → fünf Jahre」这类带限定词的短语：加定冠词会变成错的德语，原样保留
+DETERMINER = re.compile(
+    r"^(dein|deine|deinen|deinem|deiner|mein|meine|meinen|meinem|meiner|sein|seine|seinen|seinem|seiner"
+    r"|ihr|ihre|ihren|ihrem|ihrer|unser|unsere|unseren|unserem|unserer|euer|eure|kein|keine|keinen|keinem|keiner"
+    r"|dieser|diese|dieses|diesen|diesem|jeder|jede|jedes|jeden|jedem|alle|allen|viele|vielen|manche|mehrere|wenige"
+    r"|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|ein|eine|einen|einem|einer|eines|der|die|das)\s", re.I)
+
 ALLOWED_POS = ["n.", "v.", "adj.", "adv.", "int.", "num.", "pron.", "conj.", "prep.", "m.", "part.", "phr."]
 
 POS_FIX = {
@@ -76,8 +95,17 @@ def genders():
             for row in csv.DictReader(f):
                 lemma = (row.get("lemma") or "").strip()
                 genus = (row.get("genus") or "").strip().lower()
-                if not lemma or lemma.startswith("-") or genus not in ARTICLES:
+                if not lemma or lemma.startswith("-"):
                     continue
+                if genus not in ARTICLES:
+                    # 性别只在 genus 1..4 里（心/Herz、公里/Kilometer 都是这种），必须兜底
+                    for key in ("genus 1", "genus 2", "genus 3", "genus 4"):
+                        g = (row.get(key) or "").strip().lower()
+                        if g in ARTICLES:
+                            genus = g
+                            break
+                    else:
+                        continue
                 table.setdefault(lemma, ARTICLES[genus])
         _GENDERS = table
     return _GENDERS
@@ -208,6 +236,8 @@ def normalize(word, raw, relaxed=False, en=""):
             # 专名（Qingdao、Fujian）与「德语对应词是短语」的名词：只要首词大写就收，不硬加冠词
             if relaxed and re.match(r"^[A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\-]*(?:[ \-][A-ZÄÖÜ][A-Za-zÄÖÜäöüß.\-]*)*$", rest):
                 fixed = rest
+            elif relaxed and DETERMINER.match(rest):
+                fixed = rest
             else:
                 return None, "名词没冠词: %s" % rest[:24]
         rest = fixed
@@ -242,8 +272,8 @@ def run(key, items, batch, workers, out_path, max_tokens, relaxed=False, skip_fi
 
     def work(idx_batch):
         idx, b = idx_batch
-        prompt = "\n".join("%s\t%s" % (w, en) if en else w for w, _, en in b)
-        msgs = [{"role": "system", "content": SYSTEM},
+        prompt = "\n".join("%s\t%s" % (w, en) if (en and USE_HINTS) else w for w, _, en in b)
+        msgs = [{"role": "system", "content": SYSTEM + EXTRA_RULES},
                 {"role": "user", "content": "请给出下面 %d 个中文词的德语释义（每行「词<TAB>词性. 释义」）：\n%s%s"
                  % (len(b), prompt, retry_suffix[0])}]
         for attempt in (1, 2, 3):
@@ -338,8 +368,19 @@ def main():
     ap.add_argument("--out", default=r"E:\codemain\qingjian-de\de-glossary\llm-fill.tsv")
     ap.add_argument("--skip", action="append", default=[], help="已有结果的文件，里面的词不再处理（可多次给）")
     ap.add_argument("--relaxed", action="store_true", help="放宽：专名/无冠词名词也收，词性缺失用英语提示兜底")
+    ap.add_argument("--phrase", action="store_true", help="短语轮：提示词按「短语/固定搭配」写 phr.，不硬套名词冠词")
+    ap.add_argument("--no-hint", action="store_true", help="不给英语提示（避免模型照抄英语，用于照抄被退回的词）")
+    ap.add_argument("--de", default="", help="「已有德语」的释义表路径（缺省 = 脚本里的 DE 常量）")
     ap.add_argument("--report", action="store_true")
     args = ap.parse_args()
+
+    global EXTRA_RULES, DE, USE_HINTS
+    if args.de:
+        DE = args.de
+    if args.phrase:
+        EXTRA_RULES = PHRASE_RULES
+    if args.no_hint:
+        USE_HINTS = False
 
     items = load_worklist()
     print("词库缺口 %d 词（已按词频降序）；其中英语表有提示的 %d" % (len(items), sum(1 for _, _, e in items if e)))

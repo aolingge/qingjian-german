@@ -29,6 +29,26 @@
 - 覆盖：词库 92,826 词里**原本 43,709 个有德语，现在 92,044 个（99.2%）**，只剩 782 个（词库碎片、罕见专名）。
 - 验证：`qingjian-cli` `glosses=204594`；`verify-de.ps1` 全 OK；探针 `一年 → ein Jahr`、`青岛 → Qingdao`。
 
+## 第三轮：冠词二轮 + 短语轮（2026-09-27 01:21 已部署）
+- **冠词二轮**（`add_articles2.py`，v2）：性别不只在 nouns.csv 的 `genus` 单列，`genus 1..4` 里还藏着 92,210 条
+  （`心 → Herz`、`公里 → Kilometer`、`范围 → Bereich` 原先全漏；`Daten`/`Leute` 没有性别但有 `nominativ plural`）。
+  规则：只给**首义里的单个词**加冠词、复合词按末段判定、复数形用复数栏、纯专名（6,232 条）跳过。
+  结果：修 **4,876 行** —— 整词命中 1,621 / 复合词末段 1,780 / 复数栏 1,329 / 复数→die 146 →
+  `glossary-de-art2.tsv`（204,594 行），缺冠词的名词首义 45,198 → 40,611。
+- **短语轮**（`llm_fill.py --phrase`）：提示词按「短语/固定搭配」写 `phr.`、不硬套名词冠词 →
+  `llm-fill3.tsv` 566 条（13 秒，33,222 prompt / 9,790 completion tokens）：`你家 → phr. dein Zuhause`、
+  `该国 → phr. dieses Land`、`五年 → phr. fünf Jahre`、`梦里 → phr. im Traum`。
+- **不给英语提示轮**（`--phrase --no-hint`）：严格轮的「照抄英语就退回」规则误伤了 `生死`(life and death)、
+  `攻防`、`血泪`、`烟酒` 这类词 —— 去掉英语提示再跑 → `llm-fill4.tsv` 66 条：`生死 → Leben und Tod`、
+  `军民 → Militär und Zivilbevölkerung`、`炒粉 → gebratene Reisnudeln`、`右下 → rechts unten`。
+- 合并 `glossary-de-art2.tsv` + `llm-fill-phrase.tsv`(632) = `glossary-de-merged.tsv` **205,226 行**
+  → `glossary-de.qj` 14,995,680 B / 205,226 条（sha256 `2744567d…`）→ 已装并验证。
+- 剩余 146 词基本是词库碎片（`接科雷`、`仆寺少卿`）与罕见专名，不再补。
+
 ## 验证方式
 - `qingjian-cli --language de --dict D:\application\Qingjian\data\generated\dict.qj --glossary <qj> --limit 5 -- <拼音…>`，启动日志有 `加载完成 … glosses=N`。
+  （`--dict` 必须显式给，否则按相对路径找 `data/generated/dict.qj` 报 os error 3。）
 - 装好后 `verify-de.ps1`（探针 + SHA256 + 等级表 + config）。
+- 覆盖统计：`audit.py`（行数/重复/空/缺冠词/BOM/CR）、`gap_in_dict.py`（词库覆盖率）。
+- 坑：pwsh 里 `[IO.File]::WriteAllLines('相对路径', …)` 会写到**进程 CWD**（不是 PowerShell 的 `cd` 位置），
+  一律用绝对路径。
