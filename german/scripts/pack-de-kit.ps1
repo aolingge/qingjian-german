@@ -45,6 +45,8 @@ Copy-One (Join-Path $tools 'de-glossary\glossary-de-merged.tsv') (Join-Path $kit
 Copy-One (Join-Path $tools 'de-glossary\llm-fill.tsv') (Join-Path $kit 'sources') 'llm-fill.tsv'
 Copy-One (Join-Path $tools 'de-glossary\llm-fill2.tsv') (Join-Path $kit 'sources') 'llm-fill2.tsv'
 Copy-One (Join-Path $tools 'de-glossary\llm-fill-all.tsv') (Join-Path $kit 'sources') 'llm-fill-all.tsv'
+Copy-One (Join-Path $tools 'de-glossary\glossary-de-art2.tsv') (Join-Path $kit 'sources') 'glossary-de-art2.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-fill-phrase.tsv') (Join-Path $kit 'sources') 'llm-fill-phrase.tsv'
 Copy-One (Join-Path $tools 'de-glossary\NOTES-llm-fill.md') (Join-Path $kit 'sources') 'NOTES-llm-fill.md'
 
 Write-Output '== 3. 德语词汇等级表（生词分级用，放 <安装目录>\assets\levels\）=='
@@ -77,11 +79,11 @@ if (Test-Path -LiteralPath (Join-Path $tools 'de-glossary')) {
 Write-Output '== 6. HanDeDict 原始数据（%TEMP% 里的那份随时可能没了）=='
 Copy-One $Handedict (Join-Path $kit 'sources') 'handedict.u8'
 
-Write-Output '== 7. 源码补丁（德语改动全部未提交，只有这份 diff）=='
+Write-Output '== 7. 源码补丁（相对上游 40e3e55；同样内容已提交到 german 分支）=='
 if (Test-Path -LiteralPath $Source) {
     Push-Location $Source
     try {
-        $diff = & git diff 2>&1 | Out-String
+        $diff = & git diff 40e3e55 -- . ':(exclude)german' 2>&1 | Out-String
         [IO.File]::WriteAllText((Join-Path $kit 'sources\qingjian-german.patch'), $diff, (New-Object Text.UTF8Encoding($false)))
         $st = & git status --porcelain 2>&1 | Out-String
         [IO.File]::WriteAllText((Join-Path $kit 'sources\git-status.txt'), $st, (New-Object Text.UTF8Encoding($false)))
@@ -97,10 +99,10 @@ if (Test-Path -LiteralPath $Source) {
 }
 
 Write-Output '== 8. 重建说明 =='
-$readme = @"
+$readme = @'
 # 青简德语版重装套件
 
-生成时间：$stamp（脚本 pack-de-kit.ps1）
+生成时间：__STAMP__（脚本 pack-de-kit.ps1）
 
 这套东西是「德语译文」补丁的完整副本。官方更新覆盖 qingjian-server.exe / qingjian-settings.exe，
 或 %TEMP% 里的源码目录、HanDeDict 数据被清掉之后，按下面的顺序能装回来。
@@ -113,13 +115,16 @@ $readme = @"
   另外 `qingjian-cli.exe` 是命令行测试工具（`--language de --dict … --glossary … -- 拼音`，
   见 `scripts\README.md` 第四节），`qingjian-dict-convert.exe` 是把 TSV 打成 `.qj` 的官方打包器
   （`pack glossary --input … --language de --name …`）——这两个是从源码重建才有的，放这里免得 %TEMP% 被清。
-- `glossary\glossary-de.qj`：**204,594 条**中文→德语释义（`n. die Schule` / `n. das Auto, der Wagen`），
-  可直接放进 `<安装目录>\data\generated\`。三层来源：① HanDeDict（157,162 条，CC-BY-SA-3.0）② 用
-  german-nouns（CC-BY-SA-4.0）给名词补的定冠词（38,241 行）③ 词库里 HanDeDict 没收的 47,432 个词
-  由 DeepSeek `deepseek-v4-flash` 生成（严格轮 `sources\llm-fill.tsv` + 放宽轮 `sources\llm-fill2.tsv`
-  → 清洗合并成 `sources\llm-fill-all.tsv`；脚本 `scripts\de-glossary\{llm_fill,postprocess,merge_glossary}.py`）。
-  同目录另有来源文件：`glossary-de-hd.tsv`（无冠词原样转换）、`glossary-de-art.tsv`（加冠词后的表）、
-  `sources\glossary-de-merged.tsv`（合并 LLM 条目后、打包 .qj 的真正输入）；`glossary\user-glossary-de.tsv`
+- `glossary\glossary-de.qj`：**205,226 条**中文→德语释义（`n. die Schule` / `n. das Auto, der Wagen`），
+  可直接放进 `<安装目录>\data\generated\`。四层来源：① HanDeDict（157,162 条，CC-BY-SA-3.0）② 用
+  german-nouns（CC-BY-SA-4.0）给名词补的定冠词（第一轮 38,241 行 + 第二轮 `glossary-de-art2.tsv` 再修 4,876 行）
+  ③ 词库里 HanDeDict 没收的 47,432 个词由 DeepSeek `deepseek-v4-flash` 生成（严格轮 `sources\llm-fill.tsv`
+  + 放宽轮 `sources\llm-fill2.tsv` → 清洗合并成 `sources\llm-fill-all.tsv`）
+  ④ 高频短语 632 条同样由 DeepSeek 补（`sources\llm-fill-phrase.tsv`，含 `--phrase` 短语轮与 `--no-hint` 轮）；
+  脚本 `scripts\de-glossary\{llm_fill,postprocess,merge_glossary,add_articles2,audit}.py`。
+  同目录另有来源文件：`glossary-de-hd.tsv`（无冠词原样转换）、`glossary-de-art.tsv`（第一轮加冠词）、
+  `sources\glossary-de-art2.tsv`（第二轮加冠词）、`sources\glossary-de-merged.tsv`（合并 LLM 条目后、
+  打包 .qj 的真正输入，205,226 行）；`glossary\user-glossary-de.tsv`
   是**个人释义表**（原样放到 `%APPDATA%\Qingjian\`，个人表优先于随包表，手改单条释义就改它）。
 - `levels\levels-de.tsv`：德语词汇等级表（生词分级），放 `<安装目录>\assets\levels\`。
   36,560 / 157,163 条释义能定级（23.3%），来源 Goethe-Institut 5,000 词表（MIT，见 `sources\goethe-german-5000.de.tsv`）
@@ -127,7 +132,9 @@ $readme = @"
 - `config\config.toml.snapshot`：`learning_language = "de"` 的配置样子（不要整份覆盖，只对照第 5 行等）。
   其中 `[update] check = false` 是**按用户要求关掉的每日更新检查**（青简的更新器本来就只提示、不自动下载安装）。
 - `sources\handedict.u8`：HanDeDict 原始数据（CC-BY-SA 3.0），重建词表用。
-- `sources\qingjian-german.patch`：德语改动相对上游 commit 的完整 diff。
+- `sources\qingjian-german.patch`：德语改动相对上游 `40e3e55` 的完整 diff（不含 `german\` 数据目录）。
+  同样的内容已推送到 https://github.com/aolingge/qingjian-german 的 `german` 分支（提交 `977bf9f`），
+  Release `v0.1.5-dev-german` 里挂着同一份 205,226 条的 `glossary-de.qj`。
 - `scripts\`：构建 / 部署 / 验证 / OCR / 协议探针脚本。
 
 ## 重装步骤
@@ -143,10 +150,11 @@ $readme = @"
 ## 从源码重建
 
 `scripts\build-de.cmd` 需要：源码（git clone https://github.com/qingjian-team/qingjian.git，
-checkout $((Get-Content (Join-Path $kit 'notes\source-revision.txt') | Select-Object -First 1))）、
+checkout `notes\source-revision.txt` 里记的那个 revision）、
 `cargo` + MSVC BuildTools，以及 `E:\codemain\qingjian-de\sdklib|sdkinc|qjbin` 里那份 NuGet 里的 Windows SDK
 （本机没装 Windows SDK，见 README「三、构建」）。
-"@
+'@
+$readme = $readme.Replace('__STAMP__', $stamp)
 [IO.File]::WriteAllText((Join-Path $kit 'notes\reinstall.txt'), $readme, (New-Object Text.UTF8Encoding($false)))
 Write-Output '   notes\reinstall.txt 已写好'
 

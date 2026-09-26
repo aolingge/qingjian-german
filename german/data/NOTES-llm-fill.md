@@ -45,6 +45,32 @@
   → `glossary-de.qj` 14,995,680 B / 205,226 条（sha256 `2744567d…`）→ 已装并验证。
 - 剩余 146 词基本是词库碎片（`接科雷`、`仆寺少卿`）与罕见专名，不再补。
 
+## 第四轮：质检 + 缺口归零 + CEFR 全量分级（2026-09-27）
+
+工具：`tools/llm_tools.py`（子命令 `gap` / `articles` / `cefr` / `audit` / `levels` / `report`，8 并发、按 `# batch N` 断点续跑）
++ `tools/apply_fixes.py`（四条过滤器，默认干跑，`--apply` 才写）。四阶段全部 0 失败。
+
+- **gap**（1 批）：词库缺德语的词 → `llm-gap.tsv` **147 条**；最后补的 `阜新市 → n. die Stadt Fuxin`
+  让 `dict.tsv` 覆盖率到 **92,825 / 92,825 = 100.00%**。
+- **articles**（817 批）：名词首义补冠词 → `llm-articles.tsv` 40,643 条
+  （der 10,151 / die 16,887 / das 7,665 / none 5,940），落地 34,703 条，`none` 与已有冠词的跳过。
+- **cefr**（1,796 批）：德语实词 → CEFR → `llm-cefr.tsv` 107,687 条
+  （A1 461 / A2 2,055 / B1 3,502 / B2 6,367 / C1 4,064 / C2 2,991），与 Goethe 5,000 词形合成 118,791 词典供 `levels` 用。
+- **audit**（1,603 批，`--only llm`）：只审前三轮 LLM 行（47,432 行）→ `llm-audit.tsv` **14,646 条**（约 30%）。
+  首版提示词太宽（复述原文、同义改写都算），改窄成「只报意思明显不符 / 碎片 / 占位符」后才可用。
+- **apply_fixes**：清垃圾 40 行（`*** löschen`、`n. ???`）、新增缺口词 147、补冠词 34,703（跳过 5,940）、
+  质检修正 3,692 —— 忽略「复述原文」10,651 条，拒绝 303 条（只换冠词 76 / 改词性 105 / 臆改专名 122 / 冠词表否决 0）。
+  产出 `glossary-de-final.tsv` **205,333 行** + `apply-report.txt` 38,885 条改动记录。
+- **levels**（取代旧 `build_levels_de.py`）：词典 = Goethe 词形 11,106 + `llm-cefr.tsv` 107,687 = 118,791；
+  取每条释义**第一个有等级的实词**（冠词后的中心词），复合词按 `-`/`‐`/`–` 从后往前退化，仍不中且长度 ≥8 时逐位取后缀；
+  兜底：无实词按 A1、有实词但没等级按 B2。产出 `levels-de.tsv` **165,143 键 / 4,154,600 B**，
+  分布 A1 27,519 / A2 14,984 / B1 26,921 / B2 36,486 / C1 22,262 / C2 36,971。
+- **打包**：`pack-glossary.ps1`（参数 `$Input` 撞 PowerShell 自动变量 → 改名 `$InputTsv` + `[Alias('Input')]`）
+  → `glossary-de.qj` 15,155,200 B / 205,333 条 / sha256 `C12F5693…54AF` → 部署 + `verify-de.ps1` 全绿。
+- **教训**：LLM 质检的原始输出不能直接落地。前三轮抽样约 15% 的改动是损坏
+  （`艾莎 Elsa → Aisha`、`福瑞 → Furry`、`鸭苗 das Entenküken → die Entenküken`、`田子 das Feld → der Sohn`）；
+  四条过滤器后抽样损坏率约 5%，`田子` 这类残余仍需人工复核。
+
 ## 验证方式
 - `qingjian-cli --language de --dict D:\application\Qingjian\data\generated\dict.qj --glossary <qj> --limit 5 -- <拼音…>`，启动日志有 `加载完成 … glosses=N`。
   （`--dict` 必须显式给，否则按相对路径找 `data/generated/dict.qj` 报 os error 3。）

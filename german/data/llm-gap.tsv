@@ -1,0 +1,158 @@
+# llm_tools.py gap：词库里没有德语译文的词（deepseek-v4-flash）
+# batch 0
+爱奇艺	n. iQIYI
+接奥	n. Jie'ao
+杰尼斯	n. Johnny's
+圣艾蒂安	n. Saint-Étienne
+戴高乐	n. de Gaulle
+雄安	n. Xiong'an
+代什	n. Déche
+垿	n. Eigenname
+吕耶	n. Luye
+郪	n. Qi
+饸	n. He
+倧	n. Zong
+婻	n. Nan
+达卢	n. Dalu
+佖	n. Bi
+暅	n. Geng
+鄃	n. Shu
+涍	n. Xiao
+狁	n. Yun
+旿	n. Wu
+# batch 1
+溵	n. Eigenname
+洭	n. Eigenname
+𠳐	part. Lautmalerei
+𥻗	n. Eigenname
+𬉼	n. Eigenname
+峂	n. Eigenname
+嵫	n. Eigenname
+旵	n. Eigenname
+莶	n. Eigenname
+菂	n. Samen des Lotus
+妧	adj. schön
+岜	n. Eigenname
+漋	n. Eigenname
+槜	n. Eigenname
+脿	n. Eigenname
+仫	n. Eigenname
+岠	n. Eigenname
+嶅	n. Eigenname
+栐	n. Eigenname
+鄑	n. Eigenname
+# batch 2
+㑊	n. Eigenname
+哃	n. Eigenname
+峗	n. Eigenname
+峛	n. Eigenname
+峧	n. Eigenname
+峿	n. Eigenname
+昈	n. Eigenname
+柖	n. Eigenname
+溚	n. Eigenname
+漹	n. Eigenname
+畖	n. Eigenname
+碃	n. Eigenname
+碈	n. Eigenname
+碨	n. Eigenname
+磏	n. Eigenname
+胣	n. Eigenname
+芠	n. Eigenname
+茋	n. Eigenname
+茺	n. Eigenname
+茽	n. Eigenname
+# batch 3
+邿	n. Eigenname
+𠅤	n. Eigenname
+𠙶	n. Eigenname
+𡎚	n. Eigenname
+𡐓	n. Eigenname
+𤫉	n. Eigenname
+𥔲	n. Eigenname
+𥕢	n. Eigenname
+𥖨	n. Eigenname
+𦈡	n. Eigenname
+𦒍	n. Eigenname
+𦙶	n. Eigenname
+𦝼	n. Eigenname
+𦭜	n. Eigenname
+𦰡	n. Eigenname
+𧿹	n. Eigenname
+𨐈	n. Eigenname
+𨙸	n. Eigenname
+𨚕	n. Eigenname
+𨟠	n. Eigenname
+# batch 4
+𨭉	n. Eigenname
+𨱇	n. Eigenname
+𨱏	n. Eigenname
+𨱑	n. Eigenname
+𨱔	n. Eigenname
+𫑡	n. Eigenname
+𫓯	n. Eigenname
+𫓶	n. Eigenname
+𫓹	n. Eigenname
+𫔍	n. Eigenname
+𫖮	n. Eigenname
+𫖯	n. Eigenname
+𫞩	n. Eigenname
+𫟅	n. Eigenname
+𫟦	n. Eigenname
+𫟹	n. Eigenname
+𫟼	n. Eigenname
+𫠆	n. Eigenname
+𫠊	n. Eigenname
+𫠜	n. Eigenname
+# batch 5
+𫢸	n. Eigenname
+𫫇	n. Eigenname
+𫭟	n. Eigenname
+𫭢	n. Eigenname
+𫭼	n. Eigenname
+𫮃	n. Eigenname
+𫰛	n. Eigenname
+𫵷	n. Eigenname
+𫶇	n. Eigenname
+𫷷	n. Eigenname
+𫸩	n. Eigenname
+𬀩	n. Eigenname
+𬀪	n. Eigenname
+𬂩	n. Eigenname
+𬃊	n. Eigenname
+𬇕	n. Eigenname
+𬇙	n. Eigenname
+𬇹	n. Eigenname
+𬊈	n. Eigenname
+𬊤	n. Eigenname
+# batch 6
+𬷕	n. Vogelart (seltenes Schriftzeichen)
+𬸘	n. Vogelart (seltenes Schriftzeichen)
+𬸚	n. Vogelart (seltenes Schriftzeichen)
+𬸣	n. Vogelart (seltenes Schriftzeichen)
+𬸦	n. Vogelart (seltenes Schriftzeichen)
+𬸪	n. Vogelart (seltenes Schriftzeichen)
+𬹼	n. Zahnart (seltenes Schriftzeichen)
+𬺈	n. Zahnart (seltenes Schriftzeichen)
+𬺓	n. Zahnart (seltenes Schriftzeichen)
+浭	n. Geng (Flussname)
+潖	n. Pa (Flussname)
+濋	n. Chu (Flussname)
+圲	n. Erdwall (seltenes Schriftzeichen)
+垏	n. Erdwall (seltenes Schriftzeichen)
+娵	n. Eigenname (seltenes Schriftzeichen)
+媂	n. Eigenname (seltenes Schriftzeichen)
+媓	n. Eigenname (seltenes Schriftzeichen)
+昣	n. Eigenname (seltenes Schriftzeichen)
+歅	n. Eigenname (seltenes Schriftzeichen)
+沼悟	n. Erleuchtung im Sumpf (seltener Begriff)
+# batch 7
+洓	n. Eigenname
+浲	n. Eigenname
+涄	n. Eigenname
+溚	n. Eigenname
+珢	n. Eigenname
+盷	n. Eigenname
+磏	n. Eigenname
+禒	n. Eigenname
+阜新市	n. die Stadt Fuxin

@@ -1,5 +1,33 @@
 # 改动记录
 
+## 2026-09-27 —— 第四轮：全表质检 + 缺口归零 + CEFR 全量分级
+
+**释义表 205,226 → 205,333 条**（`dist/glossary-de.qj` 14,995,680 → 15,155,200 B，sha256 `c12f5693…`）
+**等级表 36,560 → 165,143 条可定级**（`data/levels-de.tsv` 1.15 MB → 4.15 MB）
+
+- **缺口归零**：`tools/llm_tools.py gap` 补完词库最后 147 个没德语的词
+  （`爱奇艺 → iQIYI`、`戴高乐 → de Gaulle`、`雄安 → Xiong'an`、`阜新市 → die Stadt Fuxin`）。
+  现在 `dict.tsv` **92,825 / 92,825 = 100.00%** 的词条都有德语译文（第四轮开始时缺 151 个）。
+- **名词冠词补全**（`tools/llm_tools.py articles`，40,643 条 → 落地 34,703 条）：
+  把 LLM 判定的 `der/die/das` 只插进首义，`none` 的 5,940 条跳过（日期、数字、复数形式）。
+- **CEFR 全量分级**（`tools/llm_tools.py cefr`，Goethe 5,000 + LLM 107,687 个实词）：
+  取每条释义**第一个有等级的实词**（冠词后的中心词），复合词再按 `-`/`‐`/`–` 从后往前退化命中，
+  兜底 A1/B2 让键覆盖率到 100%。分布 A1 27,519 / A2 14,984 / B1 26,921 / B2 36,486 / C1 22,262 / C2 36,971。
+- **全表质检 + 四条过滤器**（`tools/llm_tools.py audit` → `tools/apply_fixes.py`）：
+  质检提出 14,646 条修改，其中 10,651 条是「复述原文」被忽略；真正落地 3,692 条。
+  过滤器拦掉 76 条（只换冠词）、105 条（改词性）、122 条（单拉丁词相似度 < 0.6，防 `Elsa → Aisha` 这类臆改专名）、
+  0 条（冠词表否决）。前三轮抽样里约 15% 的改动是损坏，本轮抽样降到 **约 5%**。
+- **新增工具**：`tools/llm_tools.py`（gap / articles / cefr / audit / levels / report 六个子命令，
+  8 并发、断点续跑）、`tools/apply_fixes.py`（四条过滤器 + `--apply`）、`tools/gaps_now.py`、
+  `tools/junk_scan.py`；`tools/llm_tools.py levels` 取代旧的 `build_levels_de.py`。
+- **修坑**：`gaps_now.py` 把 `dict.tsv` 开头的 `#` 注释行当词条（少数 3 条「缺口」是假象）；
+  `pack-glossary.ps1` 的参数 `$Input` 撞 PowerShell 自动变量导致 `Test-Path` 报空串（改名 `$InputTsv`）。
+
+验证（本机实测）：`qingjian-cli.exe` 加载安装位词表 `glosses=205333`、`glossary-de.qj` entries=205,333
+（sha256 与产物一致）；`data/levels-de.tsv` 165,143 条已部署到 `<安装目录>\assets\levels\`；
+`scripts/verify-de.ps1` → 结论「通过（0 条提示）」；协议探针（protocol 7）`学校 → die Schule`；
+CLI 抽查 `艾莎 → n. Elsa`（臆改 Aisha 被过滤器挡住）。
+
 ## 2026-09-27 —— 词表质量二轮 + 仓库展示升级
 
 **释义表 204,594 → 205,226 条**（`dist/glossary-de.qj` 14,939,408 → 14,995,680 B，sha256 `2744567d…`）

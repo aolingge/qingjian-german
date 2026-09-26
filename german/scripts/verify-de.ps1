@@ -92,6 +92,36 @@ if (-not (Test-Path -LiteralPath $lvl)) {
 }
 
 Write-Output ''
+Write-Output '2b. 引擎能加载这份词表（用套件里的 qingjian-cli）'
+$cli = Join-Path $Kit 'bin\qingjian-cli.exe'
+$dict = Join-Path $Install 'data\generated\dict.qj'
+if (-not (Test-Path -LiteralPath $cli)) {
+    Warn "找不到 $cli，跳过（不影响输入法）"
+} elseif (-not (Test-Path -LiteralPath $dict)) {
+    Warn "找不到 $dict，跳过"
+} elseif (-not (Test-Path -LiteralPath $qj)) {
+    Warn '词表不在位，跳过'
+} else {
+    # qingjian-cli 把日志写到 stderr，PS 5.1 在 ErrorActionPreference=Stop 下会当成致命错误
+    $eap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $cliOut = (& $cli --dict $dict --glossary $qj --language de --limit 1 -- xuexiao 2>&1 | Out-String)
+    } finally {
+        $ErrorActionPreference = $eap
+    }
+    $m = [regex]::Match($cliOut, 'glosses=(\d+)')
+    if ($m.Success -and [int]$m.Groups[1].Value -ge 200000) {
+        Say $true "引擎加载成功：glosses=$($m.Groups[1].Value)（≥200,000）"
+    } else {
+        Say $false '词表加载条数不对（期望 ≥200,000）'
+        Write-Output $cliOut
+    }
+    if ($cliOut -match 'die Schule') { Say $true 'CLI 查 xuexiao → 学校 die Schule' }
+    else { Say $false 'CLI 查 xuexiao 没看到 die Schule' }
+}
+
+Write-Output ''
 Write-Output '3. 配置'
 $cfg = Join-Path $env:APPDATA 'Qingjian\config.toml'
 if (-not (Test-Path -LiteralPath $cfg)) {
