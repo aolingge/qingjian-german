@@ -54,6 +54,8 @@ Copy-One (Join-Path $tools 'de-glossary\llm-articles.tsv') (Join-Path $kit 'sour
 Copy-One (Join-Path $tools 'de-glossary\llm-cefr.tsv') (Join-Path $kit 'sources') 'llm-cefr.tsv'
 Copy-One (Join-Path $tools 'de-glossary\llm-audit.tsv') (Join-Path $kit 'sources') 'llm-audit.tsv'
 Copy-One (Join-Path $tools 'de-glossary\llm-sense.tsv') (Join-Path $kit 'sources') 'llm-sense.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-cefrword.tsv') (Join-Path $kit 'sources') 'llm-cefrword.tsv'
+Copy-One (Join-Path $tools 'de-glossary\llm-cefrgloss.tsv') (Join-Path $kit 'sources') 'llm-cefrgloss.tsv'
 Copy-One (Join-Path $tools 'de-glossary\apply-report.txt') (Join-Path $kit 'sources') 'apply-report.txt'
 Copy-One (Join-Path $tools 'de-glossary\fixes.tsv') (Join-Path $kit 'sources') 'fixes.tsv'
 
@@ -127,7 +129,7 @@ $readme = @'
   见 `scripts\README.md` 第四节），`qingjian-dict-convert.exe` 是把 TSV 打成 `.qj` 的官方打包器
   （`pack glossary --input … --language de --name …`）——这两个是从源码重建才有的，放这里免得 %TEMP% 被清。
 - `glossary\glossary-de.qj`：**205,333 条**中文→德语释义（`n. die Schule` / `n. das Auto, der Wagen`），
-  15,490,632 B，sha256 `65e213f3f3189ea8268d10fea286e3dbfa2ccd8e52836f8537a7a28659023175ed`，
+  15,490,632 B，sha256 `fa3e0555d4485fbf6ad2481c46ef8d5de00c265d2875c80bee6795185db341ec`，
   可直接放进 `<安装目录>\data\generated\`。五层来源：① HanDeDict（157,162 条，CC-BY-SA-3.0）② 用
   german-nouns（CC-BY-SA-4.0）给名词补的定冠词（第一轮 38,241 行 + 第二轮 `glossary-de-art2.tsv` 再修 4,876 行）
   ③ 词库里 HanDeDict 没收的 47,432 个词由 DeepSeek `deepseek-v4-flash` 生成（严格轮 `sources\llm-fill.tsv`
@@ -135,19 +137,22 @@ $readme = @'
   ④ 高频短语 632 条同样由 DeepSeek 补（`sources\llm-fill-phrase.tsv`，含 `--phrase` 短语轮与 `--no-hint` 轮）；
   ⑤ 第四轮质检：`sources\llm-gap.tsv`（147 条缺口词，词库覆盖率补到 100%）、`sources\llm-articles.tsv`（40,643 条冠词判定）、
   `sources\llm-audit.tsv`（14,646 条质检提议）、`sources\llm-sense.tsv`（第五轮 36,418 条常用义建议）、
-  `sources\apply-report.txt`（55,286 条落地/拒绝记录）由
+  `sources\apply-report.txt`（55,288 条落地/拒绝记录）由
   `scripts\de-glossary\{llm_tools,apply_fixes,gaps_now,junk_scan,audit_final}.py` 处理成 `sources\glossary-de-final.tsv`（205,333 行，
   其中第五轮校正了 14,422 条的常用义：`权利 → das Recht; der Anspruch; die Anwartschaft`；
   第六轮按 `audit_final.py` 的体检结论改掉 57 条硬错：41 条冠词（`岁数 → das Alter`、`馋猫 → die Naschkatze`）、
-  2 条中文残留（`凉凉送`）、1 条缺词性前缀（`奈特·沙马兰`），并新增 `sources\fixes.tsv`
-  ——44 条人工核对过的覆盖，优先级高于所有 LLM 提案）。
+  2 条中文残留（`凉凉送`）、1 条缺词性前缀（`奈特·沙马兰`）；第七轮再补 2 条排版（`大千世界无奇不有` 里的
+  中文全角逗号、`U盘 → der Memory Stick`），并新增 `sources\fixes.tsv`
+  ——46 条人工核对过的覆盖，优先级高于所有 LLM 提案）。
   同目录另有来源文件：`glossary-de-hd.tsv`（无冠词原样转换）、`glossary-de-art.tsv`（第一轮加冠词）、
   `sources\glossary-de-art2.tsv`（第二轮加冠词）、`sources\glossary-de-merged.tsv`（第三轮合并结果，205,226 行）、
   `glossary\user-glossary-de.tsv` 是**个人释义表**（原样放到 `%APPDATA%\Qingjian\`，
   个人表优先于随包表，手改单条释义就改它）。
 - `levels\levels-de.tsv`：德语词汇等级表（生词分级），放 `<安装目录>\assets\levels\`。
-  **170,620 条释义能定级**（按释义整串小写查表，205,333 行命中 100%；其中 11,647 条没有可靠依据走 B2/A1 兜底），
-  分布 A1 28,602 / A2 15,930 / B1 28,970 / B2 38,104 / C1 22,324 / C2 36,690，
+  **170,619 条释义能定级**（按释义整串小写查表，205,333 行命中 100%；**没有一条是盲兜底**——
+  第七轮给 413 个定级失败的中心词（`sources\llm-cefrword.tsv`）和 10,623 条没有可定级实词的条目
+  （`sources\llm-cefrgloss.tsv`）补了依据，剩下 10,058 条是纯数字/型号/符号释义，按 A1），
+  分布 A1 28,201 / A2 16,175 / B1 29,174 / B2 37,790 / C1 22,392 / C2 36,887，
   来源 Goethe-Institut 5,000 词表（MIT，见 `sources\goethe-german-5000.de.tsv`）+ DeepSeek 给 107,687 个德语实词定级，
   由 `scripts\de-glossary\llm_tools.py levels` 生成（旧的 `levels\build_levels_de.py` 已不用）。
   没有它 → 统计页德语不生词分级，其它一切照常。
@@ -156,7 +161,7 @@ $readme = @'
 - `sources\handedict.u8`：HanDeDict 原始数据（CC-BY-SA 3.0），重建词表用。
 - `sources\qingjian-german.patch`：德语改动相对上游 `40e3e55` 的完整 diff（不含 `german\` 数据目录）。
   同样的内容已推送到 https://github.com/aolingge/qingjian-german 的 `german` 分支，
-  Release `v0.1.8-dev-german` 里挂着同一份 205,333 条的 `glossary-de.qj`（附 `levels-de.tsv`）。
+  Release `v0.1.9-dev-german` 里挂着同一份 205,333 条的 `glossary-de.qj`（附 `levels-de.tsv`）。
 - `scripts\`：构建 / 部署 / 验证 / OCR / 协议探针脚本；`scripts\pack-glossary.ps1` 是一条命令打包 + 部署
   （词表与等级表一起装，旧等级表自动备份成 `levels-de.tsv.bak-<日期>`）+ 打印 sha256。
 - `scripts\selfcheck.ps1` + `scripts\register-selfcheck.ps1`：开机自检（登录后 30 秒跑 `verify-de.ps1`，
