@@ -105,7 +105,7 @@ parse 71µs · lookup 52µs · rank 6.30ms · translate 24µs (43/44 hit) · tot
 | `data/llm-audit.tsv` | 14,646 | 第四轮：全表质检提出的修改（合并时只采纳 3,692 条） | 生成内容 |
 | `data/apply-report.txt` | 55,286 | 合并落地的每一条改动（含被过滤器拒绝的理由；第四轮 + 第五轮 + 第六轮） | 生成内容 |
 | `data/llm-sense.tsv` | 36,418 | 第五轮：常用义可疑的词 + 建议释义（只采纳词频 ≥100 的 14,422 条） | 生成内容 |
-| `data/fixes.tsv` | 44 | 第六轮：自检发现后**人工核对**的硬错修正（冠词 42 条 + 中文残留 2 条），优先级最高 | 自制 |
+| `data/fixes.tsv` | 44 | 第六轮：自检发现后**人工核对**的硬错修正（冠词 41 条 + 中文残留 2 条 + 缺词性前缀 1 条），优先级最高 | 自制 |
 | `data/levels-de.tsv` | 170,620 | A1–C2 等级表（键 = 整条释义小写）；Goethe 5,000 + LLM 分级 + 月份/度量兜底 | MIT + 生成内容 |
 | `data/user-glossary-de.tsv` | 10 | 个人释义表样例 | 自制 |
 | `dist/glossary-de.qj` | 205,333 | 打包产物，15,490,632 B，sha256 `65e213f3…` | CC-BY-SA-4.0 |
@@ -129,12 +129,12 @@ python tools\llm_tools.py articles --workers 8   # 9. 名词首义补冠词 → 
 python tools\llm_tools.py cefr     --workers 8   # 10. 德语实词 → CEFR → 107,687 条
 python tools\llm_tools.py audit --only llm       # 11. 全表质检：只挑「意思明显不符」的 → 14,646 条
 python tools\apply_fixes.py --apply              # 12. 四条过滤器合并落地 → glossary-de-final.tsv 205,333 行
-python tools\llm_tools.py levels                 # 13. 重建 levels-de.tsv（165,143 键）
+python tools\llm_tools.py levels                 # 13. 重建 levels-de.tsv（第四轮口径：165,143 键）
 python tools\gaps_now.py data\glossary-de-final.tsv <源码>\assets\lexicon\dict.tsv data\levels-de.tsv   # 14. 体检
 # —— 第五轮（常用义修正）：拿英语释义表当第二意见 ——
 python tools\llm_tools.py sense  --workers 8     # 15. 只挑「常用义明显不对」的行 → 36,418 条（88,112 词里 41%）
 python tools\apply_fixes.py --apply              # 16. 只采纳词频 ≥100 的 14,422 条 → 205,333 行
-python tools\llm_tools.py levels                 # 17. 重建 levels-de.tsv（170,620 键，含月份/度量兜底）
+python tools\llm_tools.py levels                 # 17. 重建 levels-de.tsv（第五轮口径：170,638 键，含月份/度量兜底）
 # —— 第六轮（自检修复）：拿 german-nouns 和脚本化体检当裁判 ——
 python tools\audit_final.py data\glossary-de-final.tsv data\levels-de.tsv data\gender\nouns.csv   # 18. 五项体检
 python tools\apply_fixes.py --apply              # 19. 新增中文残留守卫 + 读 data\fixes.tsv 手工覆盖 44 条
