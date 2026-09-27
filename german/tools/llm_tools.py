@@ -7,6 +7,7 @@
     articles 名词首义缺 der/die/das 的条目 → 让模型判性别     → llm-articles.tsv
     cefr     释义里的德语实词 → CEFR 等级 A1–C2              → llm-cefr.tsv
     audit    全词表质检，挑出取错义项/词性错/照抄英语/碎片的条目 → llm-audit.tsv
+    verify   生僻词（词频 < N）复核：audit/sense 都跳过的那批 → llm-verify.tsv
 
 产物最后由 apply_fixes.py 一次性合并进 glossary-de-merged.tsv；
 levels-de.tsv 由 `levels` 子命令在合并后重建（键=释义整串，见 level_table.rs:73-84）。
@@ -516,6 +517,74 @@ def cmd_sense(args):
                 header="# llm_tools.py sense：常用义明显不对的词（%s，词频 ≥ %d）" % (MODEL, args.min_freq))
 
 
+# --------------------------------------------------------------------------- verify
+
+VERIFY_SYSTEM = (
+    "你是汉德词典的终审，复核**生僻词**（输入法词频很低、之前没人看过的条目）的现有德语释义。\n"
+    "只处理一种错：德语释义跟这个中文词**明显不符** —— 取错义项、张冠李戴（把别的词的意思搬过来）、"
+    "整条是英语或拼音、乱码残片。\n"
+    "下面这些一律不算错、一个字都不要输出：近义词或同义表达、语序与风格不同、另一种也说得通的译法、"
+    "带说明性括号、缺 der/die/das、词性标注不同、专名的拉丁字母转写（人名地名产品名机构名）。\n"
+    "生僻词允许沉默：**只要你不能确定现有释义是错的，就不要输出这一行**。宁漏勿错，凭印象猜出来的改动会让词表变坏。\n"
+    "输出格式「中文词<TAB>词性. 修正后的释义」，词性只用这 12 个：n. v. adj. adv. pron. prep. conj. num. m. part. int. phr.。\n"
+    "没问题的条目不要输出、不要写 OK、不要序号、不要解释；除词性前缀外必须全是德语。"
+)
+
+VERIFY_SKIP_BODY = {"eigenname", "eigennamen"}
+
+
+def cmd_verify(args):
+    """生僻词复核：把词频 < --max-freq 的条目交给模型判「现有德语释义是不是错的」，只输出错的。
+
+    这批词是词表里最后一块没被模型看过的数据：audit 全量跑过一次但只挑明显错，
+    sense 又按 SENSE_MIN_FREQ（100）跳过了生僻词，所以专门再复核一遍。
+    """
+    freq = dict(read_dict())
+    rows = []
+    for w, g in read_gloss(final_or_merged()):
+        f = freq.get(w)
+        if f is None or f >= args.max_freq or f < args.min_freq:
+            continue
+        if not POS_PREFIX.match(g):            # 没有词性前缀的条目判不了（HanDeDict 原写法）
+            continue
+        body = POS_PREFIX.sub("", g, count=1).strip()
+        if not has_letters(body):              # 纯数字/型号/符号条目（levels 里按 A1 兜底）
+            continue
+        if body.lower() in VERIFY_SKIP_BODY:   # 「n. Eigenname」这类标签式释义，人工已处理
+            continue
+        rows.append((w, g))
+    rows.sort(key=lambda t: -freq.get(t[0], 0))
+    if args.limit:
+        rows = rows[:args.limit]
+    print("送审 %d 条（词频 %d–%d）；样例：%s" % (
+        len(rows), args.min_freq, args.max_freq, " | ".join("%s→%s" % r for r in rows[:3])))
+    batches = batched(rows, args.batch)
+
+    def build(batch):
+        body = "\n".join("%s\t%s" % (w, g) for w, g in batch)
+        return [{"role": "system", "content": VERIFY_SYSTEM},
+                {"role": "user", "content": "以下是 %d 条词表条目：\n%s" % (len(batch), body)}]
+
+    def parse(_i, content):
+        out = []
+        for raw in content.splitlines():
+            line = raw.strip().lstrip("-•*> `").strip()
+            if not line or line.startswith("#") or line.startswith("```"):
+                continue
+            line = re.sub(r"^\d+[.、)]\s*", "", line)
+            if "\t" not in line:
+                continue
+            w, g = (s.strip() for s in line.split("\t", 1))
+            if w and POS_PREFIX.match(g):       # 必须带合法词性前缀，否则当模型胡说丢掉
+                out.append("%s\t%s" % (w, g))
+        return out
+
+    run_batches(load_key(), batches, build, parse, args.out, args.workers, args.max_tokens, "verify",
+                header="# llm_tools.py verify：生僻词（词频 %d–%d）里判为错的条目（%s）" % (
+                    args.min_freq, args.max_freq, MODEL),
+                marker=lambda b: "v " + (b[0][0] if b else ""))
+
+
 # --------------------------------------------------------------------------- levels
 
 def load_goethe():
@@ -874,14 +943,15 @@ def cmd_report(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("gap", "articles", "cefr", "audit", "sense"):
+    for name in ("gap", "articles", "cefr", "audit", "sense", "verify"):
         p = sub.add_parser(name)
         p.add_argument("--out", default=os.path.join(HERE, "llm-%s.tsv" % name))
         p.add_argument("--batch", type=int, default={"gap": 20, "articles": 50, "cefr": 60, "audit": 30,
-                                                     "sense": 30}[name])
+                                                     "sense": 30, "verify": 25}[name])
         p.add_argument("--workers", type=int, default=8)
         p.add_argument("--max-tokens", type=int, default={"gap": 2000, "articles": 1200, "cefr": 1500,
-                                                          "audit": 2500, "sense": 2500}[name])
+                                                          "audit": 2500, "sense": 2500,
+                                                          "verify": 2500}[name])
         p.add_argument("--limit", type=int, default=0, help="只跑前 N 项（小样试跑）")
         if name == "audit":
             p.add_argument("--only", choices=["all", "llm", "handedict", "dict", "dict-nonllm"], default="all")
@@ -889,6 +959,9 @@ def main():
             p.add_argument("--seed", type=int, default=20260927)
         if name == "sense":
             p.add_argument("--min-freq", type=int, default=100, help="只看词频 ≥ N 的词")
+        if name == "verify":
+            p.add_argument("--max-freq", type=int, default=100, help="只看词频 < N 的词（生僻词）")
+            p.add_argument("--min-freq", type=int, default=0, help="只看词频 ≥ N 的词（默认不限）")
     p = sub.add_parser("levels")
     p = sub.add_parser("cefrword")
     p.add_argument("--out", default=os.path.join(HERE, "llm-cefrword.tsv"))
@@ -905,8 +978,8 @@ def main():
     p = sub.add_parser("report")
     args = ap.parse_args()
     {"gap": cmd_gap, "articles": cmd_articles, "cefr": cmd_cefr, "audit": cmd_audit,
-     "sense": cmd_sense, "levels": cmd_levels, "cefrword": cmd_cefrword, "cefrgloss": cmd_cefrgloss,
-     "report": cmd_report}[args.cmd](args)
+     "sense": cmd_sense, "verify": cmd_verify, "levels": cmd_levels, "cefrword": cmd_cefrword,
+     "cefrgloss": cmd_cefrgloss, "report": cmd_report}[args.cmd](args)
 
 
 if __name__ == "__main__":

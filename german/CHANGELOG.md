@@ -1,5 +1,46 @@
 # 改动记录
 
+## 2026-09-27 —— 第八轮：生僻词复核（verify）+ 个人表加词工具
+
+**释义表仍是 205,333 条，其中约 3,300 条译文被复核修正**（`dist/glossary-de.qj` 15,510,104 B，sha256 `c869a59e…`）
+**等级表 170,619 → 171,330 条；新增 `tools/add_word.py`（不用重打包就能加词/改词）**
+
+- **起因**：第五轮的常用义修正按 `SENSE_MIN_FREQ = 100` 把词频 ≤100 的 **34,739 条**整批跳过，
+  这些生僻词从没被任何模型看过；同时「表里没有这个词 / 这个词译得不好」一直只能靠重新打包解决。
+- **新链路 `tools/llm_tools.py verify`**：候选 = 词频 < 100、有合法词性前缀、正文里有德语字母、
+  且正文不是 `Eigenname` 标签；批 25、按词频降序。提示词要求**只在「德语释义与中文词明显不符」时出声**
+  （不确定就不输出，宁漏勿错）→ `data/llm-verify.tsv`。
+  送审 **34,739 条 / 1,390 批 / 0 失败**，回来 **16,135 行**（模型沉默即认为原文没问题），
+  真改动 4,241 条；抽样 45 条：约 60% 明显更好（`路标 das → der Wegweiser`、`石磨 der → die Steinmühle`、
+  `髑 Schädelknochen`）、约 35% 同义改写、约 5% 可疑。
+- **`tools/apply_fixes.py` 新增两条复核守卫**：① 复核阶段不做纯删减（新义项是旧正文子串且长度 ≥3 → 拒绝 291 条）；
+  ② 复核阶段不许 DROP（生僻词「删掉」远比「译得糙」糟）。另外质检阶段的「复述原文」不再短路复核阶段的发现。
+- **修好三处长假守卫**（冠词证据链，此前「冠词表否决」长期 0 次触发）：① 查名词表前必须先剥掉中心词前的旧冠词
+  （否则 `article_for("das Wegweiser")` 永远只回「已有冠词」）；② 新增 `compound_gender()` 复合词退化
+  （`Steinmühle → Mühle` = die、`Hähnchenflügel → Flügel` = der）；③「只换冠词」规则只在正文完全相同时
+  才拿名词表作证，换掉整个中心词的改动不再被旧冠词误杀（`一揽子 → das Gesamtpaket`、`上标 → das Superskript`）。
+- **`data/fixes.tsv` 46 → 162 条**（人工核对，优先级最高）：谚文残留 4 条清理（`李俊基`、`李多海`、
+  `釜山 → Busan (Stadt in Südkorea)`、`韩元 → Won (Währungssymbol ₩; …)`）、`本法 → n. dieses Gesetz`
+  （原 `n. das Dieses Gesetz…` 语法错）、`司农 → der Landwirtschaftsminister`、`金藏 → der Goldschatz`、
+  104 条 `X → n. Eigenname` 补性别、5 条冠词硬错（`冷血动物 der Kaltblüter`、`徭 der Frondienst`、
+  `羊皮纸 das Pergament`、`鲋 die Karausche`、`腹足类 der Gastropode`，均经 `german-nouns` 证实）。
+- **探针的教训**：`de-glossary/_probe8.py` 五条候选规则里四条被证伪——拿 `german-nouns` 给裸名词补冠词
+  **区分不了音译专名与普通名词**（`凯特 → Kate`、`汤姆 → Tom`、`保时 → Porsche`、`鲍勃 → Bob`，
+  197 条里真正该补的只有 `司农`、`金藏`）；「正文整段等于英语义项」0 条；「冠词与 `german-nouns` 冲突」
+  1,009 条绝大多数是复合词/标题/复数/化学名假阳性 → 仍以 `audit_final.py` 的「可比 20,150、冲突 14」为准。
+- **结果**：`glossary-de-final.tsv` 205,333 行 / 7,417,549 B，`apply-report.txt` 59,382 条
+  （质检修正 6,948 含复核采纳 3,231、常用义修正 14,419、手工覆盖 151）；
+  `levels-de.tsv` **171,330 键 / 4,608,660 B**（A1 28,309 / A2 16,276 / B1 29,479 / B2 38,117 /
+  C1 22,433 / C2 36,716，盲兜底 0）；十项复检：覆盖率 100.00%、**CJK 归零**、中文全角标点 0、变音 0、
+  格式 0、重复 0、冠词一致 20,136 / 20,150 = 99.93%、等级表 0 重复 / 0 非法 / 0 含 CJK。
+- **新工具 `tools/add_word.py`**：`python tools/add_word.py 森饰 甜头 --write --reload` 直接写个人释义表
+  `%APPDATA%\Qingjian\user-glossary-de.tsv`（优先于随包表），`--list` / `--no-llm` / `--personal` 可选，
+  写前自动备份、`--reload` 重启 Server 重新 mmap，CEFR 用本地 Goethe 表 + `llm-cefr*.tsv` 现算。
+  实测 `森饰 → n. der Waldschmuck; Mori Shiki`（C1）、`甜头 → n. die Süße; der Vorteil`（A2）。
+- **部署验证**：`scripts/pack-glossary.ps1 -Deploy` → 15,510,104 B / sha256 `c869a59e…fa90`，
+  `scripts/verify-de.ps1` 全绿（0 条提示）；CLI 实测 `lubiao → 路标 n. der Wegweiser`、
+  `tiantou → 甜头 n. der Vorteil, der Nutzen`、`shangbiao → 上标 n. das Superskript`。
+
 ## 2026-09-27 —— 第七轮：等级表去掉盲兜底（十项体检 / 每一条都有依据）
 
 **释义表仍是 205,333 条，本轮只改 2 条排版**（`dist/glossary-de.qj` 15,490,632 B，sha256 `fa3e0555…`）

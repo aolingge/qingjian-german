@@ -185,3 +185,60 @@
   7,398,080 B（旧版备份 `.bak7`），`apply-report.txt` 55,288 条。
   `scripts/pack-glossary.ps1 -Deploy` → `dist/glossary-de.qj` 15,490,632 B / sha256 `fa3e0555…41EC`，部署后
   `scripts/verify-de.ps1` 全绿（0 条提示）。
+
+## 第八轮：生僻词复核（verify）+ 个人表加词工具（2026-09-27 13:08）
+
+- **起因**：第五轮的 `sense` 只改词频 ≥100 的常用义，词频 ≤100 的 34,739 条从没被任何模型看过；
+  同时想给「表里没有 / 译得不好」的单条词一个不重打包的入口。
+- **新链路 `python tools/llm_tools.py verify --max-freq 100 --workers 8`**：候选 = `freq < 100`、
+  有合法词性前缀、正文里有德语字母（`has_letters`）、且正文不是 `Eigenname` 标签（这些是专名，
+  无义可校）；按词频降序，批 25，提示词要求**只在「德语释义与中文词明显不符」时才出声**
+  （`VERIFY_SYSTEM`：不确定就不要输出，宁漏勿错）→ `data/llm-verify.tsv`。
+  - 结果：送审 **34,739 条 / 1,390 批 / 0 失败**，回来 **16,135 行**（模型沉默 = 认为原文没问题）；
+    其中原样复述 11,894 条、真改动 4,241 条。抽 45 条人工看：约 60% 明显更好
+    （`路标 das → der Wegweiser`、`石磨 der → die Steinmühle`、`髑 Schädelknochen`、`上标 → das Superskript`）、
+    约 35% 同义改写、约 5% 可疑，纯删减（`恪守`、`买卖人`）由守卫拦下。
+- **`apply_fixes.py` 新增两条复核守卫**：① 复核阶段不做纯删减（新义项是旧正文子串且长度 ≥3 → 拒绝 291 条）；
+  ② 复核阶段不许 DROP（生僻词「删掉」比「译得糙」糟）。质检阶段的「复述原文」不再短路复核阶段的发现
+  （`石磨` 就是 audit 说没问题、verify 说冠词错）。
+- **顺手修好了三处长假守卫**（冠词证据链）：① `add_articles2.head_token()` 拿到中心词后要先剥掉旧冠词再查表
+  —— 否则 `article_for("das Wegweiser")` 永远返回「已有冠词」，导致 `冠词表否决` 规则长期 0 次触发；
+  ② 新增 `compound_gender()` 复合词退化（`Steinmühle → Mühle` = die、`Hähnchenflügel → Flügel` = der）；
+  ③「只换冠词」规则重写：只在正文完全相同时用名词表作证（`ref == 新冠词` 采纳、`ref == 旧冠词` 拒绝），
+  换掉整个中心词的改动不再被旧冠词否决（`一揽子 der Geschäftsbereich → das Gesamtpaket`、
+  `上标 der Exponent → das Superskript` 曾因此被误杀）。
+- **`data/fixes.tsv` 46 → 162 条**（人工核对过的硬错，优先级最高）：谚文残留 4 条
+  （`李俊基 → Lee, Jun-Gi (südkoreanischer Schauspieler)`、`李多海`、`釜山 → Busan (Stadt in Südkorea)`、
+  `韩元 → Won (Währungssymbol ₩; die südkoreanische Währungseinheit)`）；`本法 → n. dieses Gesetz`
+  （原为 `n. das Dieses Gesetz…`，语法错）；`司农 → n. der Landwirtschaftsminister`、
+  `金藏 → n. der Goldschatz`；104 条 `X → n. Eigenname` 补上性别；5 条冠词硬错（经 `german-nouns` 证实）：
+  `冷血动物 → der Kaltblüter, wechselwarmes Tier`、`徭 → der Frondienst, die Zwangsarbeit`、
+  `羊皮纸 → das Pergament`、`鲋 → die Karausche`、`腹足类 → der Gastropode`。
+- **探针的教训**（`_probe8.py` 五条规则里四条被证伪，只读探针不进套件）：拿 `german-nouns` 给裸名词补冠词
+  区分不了音译专名与普通名词（`凯特 → n. Kate`、`汤姆 → Tom`、`保时 → Porsche`、`鲍勃 → Bob`，
+  197 条里真正该补的只有 `司农`、`金藏`）；「正文整段等于该词英语义项」0 条（没有整条没译的情况）；
+  「冠词与 `german-nouns` 冲突」1,009 条里绝大多数是复合词/标题/复数/化学名假阳性
+  （`U盘 der Memory Stick` 而 nouns 说 das、`三文鱼 der Lachs` 而 nouns 里只有复数 `Lachstöne`）——
+  之前 `audit_final.py` 那套「可比 20,150、冲突 14」才是可信口径。
+- **产物**：`apply_fixes.py --apply` → `glossary-de-final.tsv` **205,333 行 / 7,417,549 B**（旧版备份 `.bak8`），
+  `apply-report.txt` **59,382 条**；质检修正 6,948（其中生僻词复核采纳 3,231、删减拒绝 291、
+  冠词表证实并采纳 41；复述原文忽略 18,542；非法 0、只换冠词拒绝 21、冠词表否决 50、改词性 480、
+  臆改专名 180、混中文 18）、常用义修正 14,419、手工覆盖 151。
+  `levels` 重建 → `data/levels-de.tsv` **171,330 键 / 4,608,660 B**（A1 28,309 / A2 16,276 / B1 29,479 /
+  B2 38,117 / C1 22,433 / C2 36,716；定级来源 中心词 193,615、条目定级 928、复合词退化 602；
+  未定级 10,188 全是纯数字/符号按 A1；盲兜底 0）。
+- **十项复检**：覆盖率 205,333/205,333 = 100.00%、**CJK 0 行**、中文全角标点 0、冠词一致
+  **20,136 / 20,150 = 99.93%（冲突回到 14 条，逐条可辩护）**、弯引号 60、无词性前缀 40,095、
+  变音 0、格式 0、重复 0、等级表 171,330 键 0 重复 / 0 非法 / 0 含 CJK。
+- `scripts/pack-glossary.ps1 -Deploy` → `dist/glossary-de.qj` **15,510,104 B / sha256
+  `c869a59e7149ea91db6b5be188a3135e9f413d64e32ee3b567952a2468d6fa90`**，等级表备份
+  `levels-de.tsv.bak-20260927-130840` 后部署；`scripts/verify-de.ps1` 全绿（0 条提示）。
+  引擎实测（CLI 输入是拼音）：`lubiao → 路标 n. der Wegweiser`、`tiantou → 甜头 n. der Vorteil, der Nutzen`、
+  `shangbiao → 上标 n. das Superskript`、`jichi → 鸡翅 n. der Hähnchenflügel`。
+- **新工具 `tools/add_word.py`**（不重打包就能加词/改词）：`python tools/add_word.py 森饰 --write --reload`；
+  `--list` 列个人表、`--no-llm` 纯离线查表（随包表 / 个人表 / 词频 / CEFR / 英语义项）、`--personal` 换路径；
+  写完先备份 `.bak-时间戳` 再 upsert（保留注释头）；`--reload` 用 `taskkill /IM qingjian-server.exe /F`
+  让宿主重新 mmap；CEFR 由本地 Goethe 表 + `llm-cefr*.tsv` 经 `resolve_level()` 算出。
+  实测：`森饰 → n. der Waldschmuck; Mori Shiki`（C1）、`甜头 → n. die Süße; der Vorteil`（A2，
+  比随包表的 `die Süße` 更全）、`猫猫头 → n. Katzenkopf`、`拜仁慕尼黑 → Bayern München`。
+  个人表路径 `%APPDATA%\Qingjian\user-glossary-de.tsv`，由 `layered_translator.rs:40-44` 优先于随包表。

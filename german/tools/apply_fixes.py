@@ -54,6 +54,24 @@ def read_kv(path):
     return out
 
 
+def compound_gender(token, table, plurals, proper_only):
+    """连接式复合名词查性别：Steinmühle → 试后缀 Mühle；Nasenverstopfung → Verstopfung。
+
+    只在整词查不到时才用；后缀必须大写开头（德语复合名词的最后一个成分总是名词）。
+    """
+    if not token or " " in token or "\t" in token:
+        return None, ""
+    for i in range(3, len(token) - 3):          # 从最长的后缀开始试（Stein|mühle → Mühle）
+        cand = token[i:]
+        if len(cand) < 4:
+            break
+        cap = cand[:1].upper() + cand[1:]       # 复合词内部的名词是小写的：mühle → Mühle
+        ref, how = add_articles2.article_for(cap, table, plurals, proper_only)
+        if ref:
+            return ref, "复合词后缀 %s（%s）" % (cap, how)
+    return None, ""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true", help="真的写文件（默认只预览）")
@@ -127,14 +145,32 @@ def main() -> int:
     #   模型很爱把名词冠词换个说法（鸭苗 das Entenküken → die Entenküken），这类「只动冠词」的改动
     #   没有依据、经常把对的改错，一律拒绝；冠词被 gender/nouns.csv 证实是对的，也拒绝。
     table, plurals, proper_only, _st = add_articles2.load_genders(add_articles2.GENDER_CSV)
-    n_artflip = n_artref = n_pos = n_spell = n_cjk = 0
-    for w, fix in sorted(read_kv(os.path.join(HERE, "llm-audit.tsv")).items()):
+    n_artflip = n_artref = n_pos = n_spell = n_cjk = n_artok = 0
+    n_verify = n_verify_trim = 0
+    audit_fixes = read_kv(os.path.join(HERE, "llm-audit.tsv"))
+    verify_fixes = read_kv(os.path.join(HERE, "llm-verify.tsv"))     # 生僻词复核（第八轮新增）
+    for w in sorted(set(audit_fixes) | set(verify_fixes)):
+        # 质检阶段（audit）优先，但它「原样复述」时不算结论——生僻词复核（verify）经常才是
+        # 真发现问题的那一路，不能被复述短路掉（石磨：audit 说原文没错、verify 说冠词错了）。
         i = index.get(w)
         if i is None:
             n_bad += 1
             continue
         old = rows[i][1]
+        from_verify = False
+        fix = audit_fixes.get(w)
+        if fix is None or fix.strip() == old:
+            v = verify_fixes.get(w)
+            if v is not None and v.strip() != old:
+                fix = v
+                from_verify = True
+        if fix is None:
+            fix = audit_fixes.get(w) or verify_fixes[w]   # 两路都等于原文：按「复述」统计
         if fix.strip().upper() == "DROP":
+            if from_verify:                          # 复核阶段不许删条目（生僻词删了就是没译文）
+                n_verify_trim += 1
+                report.append(f"[复核·不动条目] {w}\t{old}")
+                continue
             rows[i][1] = None
             n_drop += 1
             report.append(f"[删除] {w}\t{old}")
@@ -165,23 +201,50 @@ def main() -> int:
             n_spell += 1
             report.append(f"[拒绝·像臆改专名] {w}\t{old} → {fix}")
             continue
+        # 复核阶段只认「换了个说法」：新释义只是旧释义的删减（没有新信息）时不动——
+        # HanDeDict 的原始条目是人工写的，模型多半只是嫌长（恪守 → 去掉一整个义项）。
+        if from_verify and len(nb) >= 3 and nb.lower() in ob.lower():
+            n_verify_trim += 1
+            report.append(f"[复核·只做了删减] {w}\t{ob} → {nb}")
+            continue
         mo = ART_HEAD.match(POS_ANY.sub("", old, count=1))
         mn = ART_HEAD.match(POS_ANY.sub("", fix, count=1))
-        if mo and mn and mo.group(1).lower() != mn.group(1).lower():
-            if mo.group(2).strip().lower() == mn.group(2).strip().lower():
-                n_artflip += 1
-                report.append(f"[拒绝·只换冠词] {w}\t{old} → {fix}")
-                continue
+        # 冠词检查只管「正文没换、只换了冠词」这一种：换掉整个中心词时（一揽子 der Geschäftsbereich
+        # → das Gesamtpaket）旧的冠词不再是证据，硬拿它否决会把真改进挡掉。
+        if (mo and mn and mo.group(1).lower() != mn.group(1).lower()
+                and mo.group(2).strip().lower() == mn.group(2).strip().lower()):
+            ref = how = None
             if old.startswith("n. "):
-                ref, how = add_articles2.article_for(
-                    add_articles2.head_token(old), table, plurals, proper_only)
-                if ref and ref == mo.group(1).lower():
-                    n_artref += 1
-                    report.append(f"[拒绝·冠词表说是 {ref}（{how}）] {w}\t{old} → {fix}")
-                    continue
+                head = add_articles2.head_token(old)
+                hm = ART_HEAD.match(head)          # head_token 不去冠词，article_for 见到冠词会直接返回
+                if hm:
+                    head = hm.group(2).strip()
+                ref, how = add_articles2.article_for(head, table, plurals, proper_only)
+                if not ref:                       # 复合词：Steinmühle → 后缀 Mühle
+                    ref, how = compound_gender(head, table, plurals, proper_only)
+            if ref and ref == mn.group(1).lower():
+                # 名词表证实「新的那个」才对（das Wegweiser → der Wegweiser）→ 采纳
+                rows[i][1] = fix
+                n_fix += 1
+                if from_verify:
+                    n_verify += 1
+                n_artok += 1
+                report.append(f"[{'复核' if from_verify else '修正'}·冠词表说是 {ref}（{how}）] "
+                              f"{w}\t{old} → {fix}")
+                continue
+            if ref and ref == mo.group(1).lower():
+                n_artref += 1
+                report.append(f"[拒绝·冠词表说是 {ref}（{how}）] {w}\t{old} → {fix}")
+                continue
+            # 没有证据的冠词翻转一律不动（第六轮的结论：模型换冠词多半是把对的改错）
+            n_artflip += 1
+            report.append(f"[拒绝·只换冠词] {w}\t{old} → {fix}")
+            continue
         rows[i][1] = fix
         n_fix += 1
-        report.append(f"[修正] {w}\n    旧: {old}\n    新: {fix}")
+        if from_verify:
+            n_verify += 1
+        report.append(f"[{'复核' if from_verify else '修正'}] {w}\n    旧: {old}\n    新: {fix}")
 
     rows = [r for r in rows if r[1]]
 
@@ -285,6 +348,7 @@ def main() -> int:
           f"质检修正 {n_fix:,}（复述原文忽略 {n_same:,}，非法拒绝 {n_bad:,}，"
           f"只换冠词拒绝 {n_artflip:,}，冠词表否决 {n_artref:,}，改词性拒绝 {n_pos:,}，"
           f"臆改专名拒绝 {n_spell:,}，混中文拒绝 {n_cjk:,}）；删除碎片 {n_drop:,}；"
+          f"其中生僻词复核采纳 {n_verify:,}（删减拒绝 {n_verify_trim:,}，冠词表证实并采纳 {n_artok:,}）；"
           f"常用义修正 {n_sense:,}（已覆盖忽略 {n_sense_noop:,}，词频<{SENSE_MIN_FREQ} 跳过 {n_sense_rare:,}，"
           f"改词性无佐证拒绝 {n_sense_pos:,}，冠词表不一致丢掉 {n_sense_art:,}，非法/缺词 {n_sense_bad:,}）；"
           f"手工覆盖 {n_manual:,}")

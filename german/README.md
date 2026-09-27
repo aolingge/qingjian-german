@@ -5,8 +5,9 @@
 
 给中文拼音输入法 **青简**（[qingjian-team/qingjian](https://github.com/qingjian-team/qingjian)，GPL-3.0）加上
 「学习语言 = 德语」的一整套成果：源码改动、**205,333 条**汉德释义表（词库覆盖率 100%、常用义已按英语义项校正，
-中文残留与冠词硬错已按 `german-nouns` 逐条复核）、德语词汇等级表（**170,619 条释义可分级**，运行时查表 100% 命中，0 条盲兜底）、
-生成工具，以及构建 / 部署 / 验证脚本。
+中文残留与冠词硬错已按 `german-nouns` 逐条复核，词频 ≤100 的 34,739 条又过了一遍**生僻词复核**）、
+德语词汇等级表（**171,330 条释义可分级**，运行时查表 100% 命中，0 条盲兜底）、
+生成工具（含**个人释义表加词工具**），以及构建 / 部署 / 验证脚本。
 
 装完就是这样（真机候选窗口，在 Edge 里输入 `da'jia'hao`）：
 
@@ -34,9 +35,11 @@
 - 设置页「学习语言」多出 **德语** 选项，候选词旁显示德语译文（含 ä/ö/ü/ß 等变音符号）
 - 词库 92,825 个词 **100% 有德语译文**（补词前只有 43,709 个）
 - 名词带定冠词（`der Kilometer` / `das Herz` / `die Daten`），短语标 `phr.`，词性沿用青简的 12 种
-- 统计页有 A1 / A2 / B1 / B2 / C1 / C2 生词分级（**170,619 条释义**能定级，A1 28,201 / A2 16,175 / B1 29,174 / B2 37,790 / C1 22,392 / C2 36,887（0 条盲兜底））
+- 统计页有 A1 / A2 / B1 / B2 / C1 / C2 生词分级（**171,330 条释义**能定级，A1 28,309 / A2 16,276 / B1 29,479 / B2 38,117 / C1 22,433 / C2 36,716（0 条盲兜底））
 - 常用义排在前面：`权利` 是 `das Recht; der Anspruch; die Anwartschaft`（原来只有生僻的 `die Anwartschaft`），
   `便宜` 是 `billig; preiswert; günstig`（原来只有 `geeignet`）——第五轮用英语释义表当第二意见校正了 14,422 条
+- 遇到词表里没有、或译得不好的词，**不用重打包**：`tools\add_word.py` 直接写个人释义表
+  （`python tools\add_word.py 森饰 甜头 --write --reload`），个人表优先于随包表
 - **不用换 DLL**：安装自带的旧 TSF DLL 不认识 `German` 枚举，Server 侧按协议版本自动降级（协议 7→8），
   旧 DLL 收到的是「英语」标签 + 德语正文，因此不会丢键、不会打不出汉字
 - 全离线：释义表是 mmap 的 `.qj` 容器，启动近零耗时；个人释义表 `user-glossary-de.tsv` 可覆盖任意单条
@@ -48,7 +51,7 @@
 ```powershell
 # 释义表与等级表都在 Release 里：
 #   https://github.com/aolingge/qingjian-german/releases/latest
-#   glossary-de.qj（205,333 条，15,490,632 B）+ levels-de.tsv（170,619 条，4,577,561 B）
+#   glossary-de.qj（205,333 条，15,510,104 B）+ levels-de.tsv（171,330 条，4,608,660 B）
 copy dist\glossary-de.qj "D:\application\Qingjian\data\generated\"   # 换成你的安装目录
 # %APPDATA%\Qingjian\config.toml 里改成：learning_language = "de"
 Get-Process qingjian-server | Stop-Process   # 输入法宿主会自动把它拉起来
@@ -106,14 +109,15 @@ parse 71µs · lookup 52µs · rank 6.30ms · translate 24µs (43/44 hit) · tot
 | `data/llm-articles.tsv` | 40,643 | 第四轮：名词首义补 der/die/das | 生成内容 |
 | `data/llm-cefr.tsv` | 107,687 | 第四轮：德语实词 → CEFR 等级（Goethe 口径） | 生成内容 |
 | `data/llm-audit.tsv` | 14,646 | 第四轮：全表质检提出的修改（合并时只采纳 3,692 条） | 生成内容 |
-| `data/apply-report.txt` | 55,288 | 合并落地的每一条改动（含被过滤器拒绝的理由；第四至第七轮） | 生成内容 |
+| `data/apply-report.txt` | 59,382 | 合并落地的每一条改动（含被过滤器拒绝的理由；第四至第八轮） | 生成内容 |
 | `data/llm-cefrword.tsv` | 413 | 第七轮：复现式/分词等未定级中心词 → CEFR 等级 | 生成内容 |
 | `data/llm-cefrgloss.tsv` | 10,623 | 第七轮：没有可定级实词的条目（型号/符号/短语）→ CEFR 等级 | 生成内容 |
+| `data/llm-verify.tsv` | 16,135 | 第八轮：词频 ≤100 的生僻词复核（送审 34,739 条，模型只对「明显不符」的出声） | 生成内容 |
 | `data/llm-sense.tsv` | 36,418 | 第五轮：常用义可疑的词 + 建议释义（只采纳词频 ≥100 的 14,422 条） | 生成内容 |
-| `data/fixes.tsv` | 44 | 第六轮：自检发现后**人工核对**的硬错修正（冠词 41 条 + 中文残留 2 条 + 缺词性前缀 1 条），优先级最高 | 自制 |
-| `data/levels-de.tsv` | 170,619 | A1–C2 等级表（键 = 整条释义小写）；Goethe 5,000 + 分词分级 + 条目分级 + 月份/度量兜底 | MIT + 生成内容 |
-| `data/user-glossary-de.tsv` | 10 | 个人释义表样例 | 自制 |
-| `dist/glossary-de.qj` | 205,333 | 打包产物，15,490,632 B，sha256 `fa3e0555…` | CC-BY-SA-4.0 |
+| `data/fixes.tsv` | 162 | 人工核对的硬错修正（谚文残留 4、中文残留 3、缺冠词标签 104、冠词硬错 5 等），优先级最高 | 自制 |
+| `data/levels-de.tsv` | 171,330 | A1–C2 等级表（键 = 整条释义小写）；Goethe 5,000 + 分词分级 + 条目分级 + 月份/度量兜底 | MIT + 生成内容 |
+| `data/user-glossary-de.tsv` | 10 | 个人释义表样例（`tools\add_word.py` 就写它） | 自制 |
+| `dist/glossary-de.qj` | 205,333 | 打包产物，15,510,104 B，sha256 `c869a59e…` | CC-BY-SA-4.0 |
 | `data/sources/` | — | HanDeDict、german-nouns、Goethe 5,000 原始数据 | 各自见 `NOTICE.md` |
 
 ### 补词流水线
@@ -154,6 +158,13 @@ python tools\llm_tools.py levels                 # 26. 重建 levels-de.tsv（17
 python tools\audit_final.py data\glossary-de-final.tsv data\levels-de.tsv data\gender\nouns.csv   # 27. 十项复检
 python tools\apply_fixes.py --apply              # 28. 手工覆盖 46 条（新增 2 条排版修正）
 powershell -File scripts\pack-glossary.ps1 -Deploy   # 29. 打包并部署
+# —— 第八轮（生僻词复核 + 个人表加词工具）：词频 ≤100 的条目也过一遍 ——
+python tools\llm_tools.py verify --max-freq 100 --workers 8   # 30. 生僻词复核 → data\llm-verify.tsv（送审 34,739 条 / 1,390 批）
+python tools\apply_fixes.py --apply              # 31. 采纳 3,231 条（只做删减的不动 291 条；生僻词不许 DROP）
+python tools\audit_final.py data\glossary-de-final.tsv data\levels-de.tsv data\gender\nouns.csv   # 32. 十项复检（CJK 归零）
+python tools\llm_tools.py levels                 # 33. 重建 levels-de.tsv（171,330 键）
+powershell -File scripts\pack-glossary.ps1 -Deploy   # 34. 打包并部署（sha256 c869a59e…）
+python tools\add_word.py 森饰 甜头 --write --reload   # 35. 单条加词/改词走个人释义表，不用重打包
 ```
 
 `apply_fixes.py` 的过滤器是关键——LLM 质检会顺手动很多**本来正确**的词条
@@ -181,9 +192,23 @@ powershell -File scripts\pack-glossary.ps1 -Deploy   # 29. 打包并部署
    `凉凉送 → v. (网络用语) 冷落、忽视`、`者们 → n. die (Plural von 者)`；德语释义里偶尔出现的
    谚文注释是允许的，那 4 条是原表就有的）；
 9. **`data/fixes.tsv` 手工覆盖**：优先级高于所有 LLM 提案，用于自检发现后人工核对过的硬错
-   （44 条 = 41 条冠词：`岁数/年龄/庚/龄/老伴儿 → das Alter`、`馋猫 → die Naschkatze`、
-   `午餐肉 → das Frühstücksfleisch`、`蛀牙 → die Karies`…；加上 `凉凉送/凉送给` 的中文残留、
-   `奈特·沙马兰` 补词性前缀，共 3 条）。
+   （162 条：谚文残留 4 条（`李俊基/李多海/釜山/韩元` 去掉韩文注释）、`本法 → n. dieses Gesetz`、
+   104 条 `X → n. Eigenname` 补上性别、5 条冠词硬错（`冷血动物 → der Kaltblüter`、`徭 → der Frondienst`、
+   `羊皮纸 → das Pergament`、`鲋 → die Karausche`、`腹足类 → der Gastropode`，均经 `german-nouns` 证实），
+   外加第六轮的 41 条冠词与 3 条排版/前缀修正）。
+
+第八轮（生僻词复核）又补了三条，都在 `apply_fixes.py` 里：
+
+10. **复核阶段不做纯删减**：新义项是旧正文的子串且长度 ≥3 → 拒绝（291 条，如 `恪守`、`买卖人`）；
+    生僻词条目一律不许 DROP——「删掉」远比「译得糙」糟。
+11. **复述不再短路复核**：质检阶段（`llm-audit.tsv`）说「原文没错」时，复核阶段（`llm-verify.tsv`）的发现照样生效
+    （`石磨`：audit 认为旧冠词没问题，verify 指出该用 `die Steinmühle`）；
+12. **冠词证据链修好了三处长假守卫**（此前 `冠词表否决` 长期 0 次触发）：① `add_articles2.head_token()`
+    拿到中心词后必须先剥掉旧冠词再查表，否则 `article_for("das Wegweiser")` 永远只会回「已有冠词」；
+    ② 新增 `compound_gender()` 复合词退化（`Steinmühle → Mühle` = die、`Hähnchenflügel → Flügel` = der）；
+    ③「只换冠词」规则改成：正文完全相同时才拿名词表作证（`ref == 新冠词` → 采纳，`ref == 旧冠词` → 拒绝），
+    换掉整个中心词的改动不再被旧冠词否决（`一揽子 der Geschäftsbereich → das Gesamtpaket`、
+    `上标 der Exponent → das Superskript` 曾因此被误杀）。
 
 两个踩过的坑，重跑务必注意：
 
@@ -201,7 +226,7 @@ german/
   NOTICE.md                     数据署名与许可细节
   docs/build-and-deploy.md      完整构建 / 部署 / 踩坑记录（要从零重建就看这篇）
   docs/screenshots/             候选窗口截图
-  tools/                        生成工具（Python）：缺口统计、补词、加冠词、合并、等级表、体检
+  tools/                        生成工具（Python）：缺口统计、补词、加冠词、合并、等级表、体检、生僻词复核、个人表加词
   scripts/                      构建、部署、体检、协议探针、OCR 脚本
   data/                         释义表 / 等级表 / 补词中间产物 / 上游原始数据
   dist/glossary-de.qj           打包好的释义表，直接拷进 <安装目录>\data\generated\
@@ -226,11 +251,11 @@ german/
 
 - **协议版本变了**：德语记号让 `PROTOCOL_VERSION` 从 7 升到 8。老 DLL 靠 Server 侧降级仍可用，
   但如果你自己改了协议，请同步重编并注册 TSF DLL（`docs/build-and-deploy.md` 第五节）。
-- **CEFR 分级：每条释义都能定级，没有盲兜底**。等级表的键是整条释义的小写文本（精确匹配），表里 170,619 条，
+- **CEFR 分级：每条释义都能定级，没有盲兜底**。等级表的键是整条释义的小写文本（精确匹配），表里 171,330 条，
   运行时查表命中 100%（205,333 行一行不落，含 `M. Night Shyamalan` 这种量词前缀）。第七轮把最后
   11,647 条「没有可靠依据就按 B2/A1 兜底」的条目清掉了：其中 413 个中心词（复现式 `gegessen`、分词
-  `entschlossen`）和 930 条整条目（`nach und nach`、`als ob`、`Eigenname`）交给模型按条目定级，剩下的
-  10,058 条是纯数字/型号/符号释义（`1 (Num)`、`Typ 99`、`〡〢〣`），释义里没有任何德语词汇可学，一律按 A1。
+  `entschlossen`）和 928 条整条目（`nach und nach`、`als ob`、`Eigenname`）交给模型按条目定级，剩下的
+  10,188 条是纯数字/型号/符号释义（`1 (Num)`、`Typ 99`、`〡〢〣`），释义里没有任何德语词汇可学，一律按 A1。
 - **名词大小写只能人工抽查**：德语形容词跟在冠词后面本来就小写（`ein kleiner Teil`、`die drei Punkte`），
   而 `german-nouns` 把 `Klein`/`Für`/`Alt` 这类专名也收成名词，所以「小写词 ∈ nouns.csv」这种自动判定
   全是假阳性。现在只做一条确定性的对照：冠词后的小写外来词（英语词条）——复检为 0 处，
@@ -242,8 +267,10 @@ german/
 - **40,095 行没有词性前缀**（`10月11日 → 11. Oktober`）：这是 HanDeDict 原生就有的写法，青简按
   「整段就是释义」处理，不影响释义显示与定级，加词性反而会写错。
 - 语料是词典式的，**不是逐句翻译**；生成词条（`llm-fill*.tsv`、`llm-*.tsv`）没有人工逐条校对。
-  第五轮已经用英语表校正了 14,422 条常用义，第六轮又用 `german-nouns` 复核了冠词，但
-  **词频 <100 的生僻词仍可能有取错义项的老毛病**（例如 `都会` 被当成「大都市」而不是「都 + 会」）。
+  第五轮已经用英语表校正了 14,422 条常用义，第六轮又用 `german-nouns` 复核了冠词，第八轮再把**词频 ≤100 的
+  34,739 条生僻词**整体送模型复核了一遍（回来 16,135 条，采纳 3,231 条）——但模型对「它也不确定」的条目
+  按约定不出声（`llm_tools.py verify` 的提示词是「宁漏勿错」），所以**生僻词仍有取错义项的可能**
+  （例如 `都会` 被当成「大都市」而不是「都 + 会」）。想改单条，用 `tools\add_word.py` 最快。
 
 ## 许可与署名
 
