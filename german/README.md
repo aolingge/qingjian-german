@@ -4,8 +4,8 @@
 [![data: CC-BY-SA-4.0](https://img.shields.io/badge/data-CC--BY--SA--4.0-lightgrey)](NOTICE.md)
 
 给中文拼音输入法 **青简**（[qingjian-team/qingjian](https://github.com/qingjian-team/qingjian)，GPL-3.0）加上
-「学习语言 = 德语」的一整套成果：源码改动、**205,333 条**汉德释义表（词库覆盖率 100%）、德语词汇等级表
-（165,143 条释义可分级）、生成工具，以及构建 / 部署 / 验证脚本。
+「学习语言 = 德语」的一整套成果：源码改动、**205,333 条**汉德释义表（词库覆盖率 100%、常用义已按英语义项校正）、
+德语词汇等级表（**170,638 条释义可分级**）、生成工具，以及构建 / 部署 / 验证脚本。
 
 装完就是这样（真机候选窗口，在 Edge 里输入 `da'jia'hao`）：
 
@@ -33,7 +33,9 @@
 - 设置页「学习语言」多出 **德语** 选项，候选词旁显示德语译文（含 ä/ö/ü/ß 等变音符号）
 - 词库 92,825 个词 **100% 有德语译文**（补词前只有 43,709 个）
 - 名词带定冠词（`der Kilometer` / `das Herz` / `die Daten`），短语标 `phr.`，词性沿用青简的 12 种
-- 统计页有 A1 / A2 / B1 / B2 / C1 / C2 生词分级（**165,143 条释义**能定级，A1 27,519 / A2 14,984 / B1 26,921 / B2 36,486 / C1 22,262 / C2 36,971）
+- 统计页有 A1 / A2 / B1 / B2 / C1 / C2 生词分级（**170,638 条释义**能定级，A1 28,605 / A2 15,930 / B1 28,977 / B2 38,108 / C1 22,328 / C2 36,690）
+- 常用义排在前面：`权利` 是 `das Recht; der Anspruch; die Anwartschaft`（原来只有生僻的 `die Anwartschaft`），
+  `便宜` 是 `billig; preiswert; günstig`（原来只有 `geeignet`）——第五轮用英语释义表当第二意见校正了 14,422 条
 - **不用换 DLL**：安装自带的旧 TSF DLL 不认识 `German` 枚举，Server 侧按协议版本自动降级（协议 7→8），
   旧 DLL 收到的是「英语」标签 + 德语正文，因此不会丢键、不会打不出汉字
 - 全离线：释义表是 mmap 的 `.qj` 容器，启动近零耗时；个人释义表 `user-glossary-de.tsv` 可覆盖任意单条
@@ -100,10 +102,11 @@ parse 71µs · lookup 52µs · rank 6.30ms · translate 24µs (43/44 hit) · tot
 | `data/llm-articles.tsv` | 40,643 | 第四轮：名词首义补 der/die/das | 生成内容 |
 | `data/llm-cefr.tsv` | 107,687 | 第四轮：德语实词 → CEFR 等级（Goethe 口径） | 生成内容 |
 | `data/llm-audit.tsv` | 14,646 | 第四轮：全表质检提出的修改（合并时只采纳 3,692 条） | 生成内容 |
-| `data/apply-report.txt` | 38,885 | 第四轮合并落地的每一条改动（含被过滤器拒绝的理由） | 生成内容 |
-| `data/levels-de.tsv` | 165,143 | A1–C2 等级表（键 = 整条释义小写）；Goethe 5,000 + LLM 分级 | MIT + 生成内容 |
+| `data/apply-report.txt` | 55,241 | 合并落地的每一条改动（含被过滤器拒绝的理由；第四轮 + 第五轮） | 生成内容 |
+| `data/llm-sense.tsv` | 36,418 | 第五轮：常用义可疑的词 + 建议释义（只采纳词频 ≥100 的 14,422 条） | 生成内容 |
+| `data/levels-de.tsv` | 170,638 | A1–C2 等级表（键 = 整条释义小写）；Goethe 5,000 + LLM 分级 + 月份/度量兜底 | MIT + 生成内容 |
 | `data/user-glossary-de.tsv` | 10 | 个人释义表样例 | 自制 |
-| `dist/glossary-de.qj` | 205,333 | 打包产物，15,155,200 B，sha256 `c12f5693…` | CC-BY-SA-4.0 |
+| `dist/glossary-de.qj` | 205,333 | 打包产物，15,490,832 B，sha256 `e1908475…` | CC-BY-SA-4.0 |
 | `data/sources/` | — | HanDeDict、german-nouns、Goethe 5,000 原始数据 | 各自见 `NOTICE.md` |
 
 ### 补词流水线
@@ -126,17 +129,31 @@ python tools\llm_tools.py audit --only llm       # 11. 全表质检：只挑「�
 python tools\apply_fixes.py --apply              # 12. 四条过滤器合并落地 → glossary-de-final.tsv 205,333 行
 python tools\llm_tools.py levels                 # 13. 重建 levels-de.tsv（165,143 键）
 python tools\gaps_now.py data\glossary-de-final.tsv <源码>\assets\lexicon\dict.tsv data\levels-de.tsv   # 14. 体检
+# —— 第五轮（常用义修正）：拿英语释义表当第二意见 ——
+python tools\llm_tools.py sense  --workers 8     # 15. 只挑「常用义明显不对」的行 → 36,418 条（88,112 词里 41%）
+python tools\apply_fixes.py --apply              # 16. 只采纳词频 ≥100 的 14,422 条 → 205,333 行
+python tools\llm_tools.py levels                 # 17. 重建 levels-de.tsv（170,638 键，含月份/度量兜底）
 qingjian-dict-convert.exe --out-dir out pack glossary --input data\glossary-de-final.tsv --language de ...
 ```
 
-`apply_fixes.py` 的过滤器是第四轮的关键——LLM 质检会顺手动很多**本来正确**的词条
-（前三轮抽样里约 15% 的改动是损坏：`艾莎 Elsa → Aisha`、`福瑞 → Furry`）。
+`apply_fixes.py` 的过滤器是关键——LLM 质检会顺手动很多**本来正确**的词条
+（第四轮抽样里约 15% 的改动是损坏：`艾莎 Elsa → Aisha`、`福瑞 → Furry`）。
 现在只有同时满足下面条件才落地，否则在 `apply-report.txt` 里记明拒绝理由：
 
 1. 只把 `der/die/das` 换掉、正文没变的 → 拒绝（冠词表 `add_articles2` 认旧冠词正确时尤其）；
 2. 词性（`n.`/`v.`/…）被改的 → 拒绝；
 3. 旧、新都是单个拉丁词、且 `difflib` 相似度 < 0.6 的 → 视为臆改专名，拒绝；
-4. 与原文一字不差的「复述」→ 直接忽略（本轮 10,651 条）。
+4. 与原文一字不差的「复述」→ 直接忽略（第四轮 10,651 条）。
+
+第五轮的「常用义」段另有三条（`apply-report.txt` 里逐条可查）：
+
+5. **词频 < 100 的一律不动**（跳过 16,224 条）：生僻词没有可靠第二意见、错了也没人用
+   （代价是连 `憋闷 → bedrückt; beklommen; stickig` 这种合理建议也一起放过）；
+6. **只增不删**：新义项里去掉旧表已有的，插到最前，旧义项全部保留——`权利 das Recht` 就是这么补进
+   `die Anwartschaft` 前面的；
+7. **词性变更必须拿到英语表佐证**：新词性要出现在英语表该词的词性集合里、旧词性不在其中、且词频 ≥1000
+   （1,709 条没佐证 → 拒绝；`跟 n. die Ferse → prep. mit; und` 有佐证 → 通过）；
+   另外新义项的冠词与冠词表整词命中结果不一致的（`垂水`、共 225 条）一律丢掉。
 
 两个踩过的坑，重跑务必注意：
 
@@ -179,15 +196,16 @@ german/
 
 - **协议版本变了**：德语记号让 `PROTOCOL_VERSION` 从 7 升到 8。老 DLL 靠 Server 侧降级仍可用，
   但如果你自己改了协议，请同步重编并注册 TSF DLL（`docs/build-and-deploy.md` 第五节）。
-- **CEFR 分级覆盖 165,143 / 176,961 条释义（93.3%）**：等级表的键是整条释义的小写文本，
-  Goethe 词表之外的词由 DeepSeek 按同一口径定级；数字/日期/化学名这类释义（`400米跨栏`、`2‐酮古洛糖酸`）
-  没有等级，统计页就不显示。
+- **CEFR 分级：每条释义都能定级**。等级表的键是整条释义的小写文本（精确匹配），表里 170,638 条，
+  运行时查表命中 100%；其中 11,649 条（日期、单位、化学名——`400米跨栏`、`2‐酮古洛糖酸`）没有可靠依据，
+  按 B2 兜底（没有实词的短语按 A1），所以统计页不会漏项，但这些词的等级只是默认值。
 - **名词首义里还有 15,883 条没有定冠词**：剩下的是日期（`12月25日 → 1. Weihnachtsfeiertag`）、
   数量（`5分钟`）、技术复合词（`8通道双向数据耦合器`）——这些本来就不该加 `der/die/das`。
 - **词库覆盖率已经是 100%**：`dict.tsv` 92,825 个词条全部有德语译文（第四轮补完 147 个缺口词，
   最后一个 `阜新市 → die Stadt Fuxin` 也在里面）。
-- 语料是词典式的，**不是逐句翻译**；生成词条（`llm-fill*.tsv`、`llm-*.tsv`）没有人工逐条校对，
-  多义词可能只取到一个义项（例如 `都会` 被当成「大都市」而不是「都 + 会」）。
+- 语料是词典式的，**不是逐句翻译**；生成词条（`llm-fill*.tsv`、`llm-*.tsv`）没有人工逐条校对。
+  第五轮已经用英语表校正了 14,422 条常用义，但**词频 <100 的生僻词仍可能有取错义项的老毛病**
+  （例如 `都会` 被当成「大都市」而不是「都 + 会」）。
 
 ## 许可与署名
 

@@ -445,6 +445,72 @@ def cmd_audit(args):
                 header="# llm_tools.py audit：只列有问题的条目（%s）" % MODEL)
 
 
+# --------------------------------------------------------------------------- sense
+
+SENSE_SYSTEM = (
+    "你是汉德词典编者。对每条中文词，判断给出的**当前德语释义**是否覆盖了该词最常用的意思。\n"
+    "参考英语义项只是提示（它自己的顺序也不代表中文里的常用程度），不要照抄英语。\n"
+    "只有当当前德语明显不是常用义时才输出一行，格式严格为「中文词<TAB>词性. 建议的德语常用义」，例如：\n"
+    "便宜\tadj. billig; preiswert; günstig\n"
+    "建议写 1–3 条德语义，用「; 」分隔；词性前缀只能用这 12 个：n. v. adj. adv. pron. prep. conj. num. m. part. int. phr.；\n"
+    "名词必须带定冠词（der/die/das）。当前德语已经覆盖常用义的行**不要输出**。\n"
+    "不要解释、不要序号、不要 Markdown；除词性前缀外输出必须全是德语。"
+)
+
+
+def read_en():
+    """英语表：一个中文词可能有多条義项（同一行里用 TAB 分隔）。"""
+    out = {}
+    with open(EN, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.startswith("#") or "\t" not in line:
+                continue
+            w, rest = line.rstrip("\n").split("\t", 1)
+            senses = [s.strip() for s in rest.split("\t") if s.strip()]
+            if w and senses:
+                out.setdefault(w, senses)
+    return out
+
+
+def cmd_sense(args):
+    """常用义修正：拿英语义项当第二意见，找出「德语给的是生僻义」的词。
+
+    只输出**需要改**的词，落地时把建议的常用义**插到最前面**、旧义项保留在后面
+    （所以最坏情况是多一个义项，不会丢信息）。
+    """
+    en = read_en()
+    freq = dict(read_dict())
+    rows = [(w, g, en[w]) for w, g in read_gloss(final_or_merged()) if w in en and freq.get(w, 0) >= args.min_freq]
+    rows.sort(key=lambda t: -freq[t[0]])
+    if args.limit:
+        rows = rows[:args.limit]
+    print("送审 %d 条（词频 ≥ %d，且英语表里有）：%s" % (
+        len(rows), args.min_freq, " | ".join("%s→%s" % (w, g) for w, g, _ in rows[:3])))
+    batches = batched(rows, args.batch)
+
+    def build(batch):
+        body = "\n".join("%s\t%s\t%s" % (w, g, " / ".join(s)) for w, g, s in batch)
+        return [{"role": "system", "content": SENSE_SYSTEM},
+                {"role": "user", "content": "以下是 %d 条（中文词 / 当前德语 / 参考英语）：\n%s" % (len(batch), body)}]
+
+    def parse(_i, content):
+        out = []
+        for raw in content.splitlines():
+            line = raw.strip().lstrip("-•*> `").strip()
+            if not line or line.startswith("#") or line.startswith("```"):
+                continue
+            line = re.sub(r"^\d+[.、)]\s*", "", line)
+            if "\t" not in line:
+                continue
+            w, g = (s.strip() for s in line.split("\t", 1))
+            if w and POS_PREFIX.match(g):        # 必须带合法词性前缀，否则当模型胡说丢掉
+                out.append("%s\t%s" % (w, g))
+        return out
+
+    run_batches(load_key(), batches, build, parse, args.out, args.workers, args.max_tokens, "sense",
+                header="# llm_tools.py sense：常用义明显不对的词（%s，词频 ≥ %d）" % (MODEL, args.min_freq))
+
+
 # --------------------------------------------------------------------------- levels
 
 def load_goethe():
@@ -475,6 +541,21 @@ def load_goethe():
                         table.setdefault(anno[len(art):].strip().lower(), level)
                         break
     return table
+
+
+# 兜底词表：月份/星期/季节/度量/常见技术词。Goethe 表和 LLM 定级里都没有这些词，
+# 但日期类条目（11. Oktober、5 Minuten、100-Meter-Lauf）在词表里占了不少，按 A1/A2 兜底。
+FALLBACK_LEVELS = {}
+for _w in ("januar februar märz april mai juni juli august september oktober november dezember").split():
+    FALLBACK_LEVELS[_w] = "A1"
+for _w in ("montag dienstag mittwoch donnerstag freitag samstag sonntag").split():
+    FALLBACK_LEVELS[_w] = "A1"
+for _w in ("frühling sommer herbst winter jahr jahre tag tage monat woche uhr minute stunde "
+           "meter kilometer zentimeter millimeter gramm kilogramm kilometer prozent").split():
+    FALLBACK_LEVELS[_w] = "A1"
+for _w in ("jahrhundert jahrtausend jahrzehnt datum kalender kilobyte megabyte gigabyte "
+           "lauf sprint staffel hürdenlauf halbjahr quartal jahreszeit").split():
+    FALLBACK_LEVELS[_w] = "A2"
 
 
 def content_words(text):
@@ -533,7 +614,7 @@ def cmd_levels(args):
                 low_t = t.lower()
                 hit = None
                 for part in reversed(re.split(r"[-‐–]", low_t)):
-                    if len(part) >= 5 and part in word_level:
+                    if len(part) >= 4 and part in word_level:
                         hit = word_level[part]
                         break
                 if hit is None and len(low_t) >= 8:
@@ -544,6 +625,20 @@ def cmd_levels(args):
                 if hit:
                     level = hit
                     kinds["复合词退化"] += 1
+                    break
+        if level is None:
+            # 兜底词表：月份/星期/季节/度量/常见技术词——Goethe 表和 LLM 定级里都没有，但确实是初级词
+            for t in words:
+                low_t = t.lower()
+                hit = FALLBACK_LEVELS.get(low_t)
+                if hit is None:
+                    for part in re.split(r"[-‐–]", low_t):
+                        if part in FALLBACK_LEVELS:
+                            hit = FALLBACK_LEVELS[part]
+                            break
+                if hit:
+                    level = hit
+                    kinds["兜底词表"] += 1
                     break
         if level is None:
             level = "A1" if not words else "B2"   # 没有实词（纯数字/符号）按 A1；有实词但没标注按 B2
@@ -604,22 +699,26 @@ def cmd_report(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("gap", "articles", "cefr", "audit"):
+    for name in ("gap", "articles", "cefr", "audit", "sense"):
         p = sub.add_parser(name)
         p.add_argument("--out", default=os.path.join(HERE, "llm-%s.tsv" % name))
-        p.add_argument("--batch", type=int, default={"gap": 20, "articles": 50, "cefr": 60, "audit": 30}[name])
+        p.add_argument("--batch", type=int, default={"gap": 20, "articles": 50, "cefr": 60, "audit": 30,
+                                                     "sense": 30}[name])
         p.add_argument("--workers", type=int, default=8)
-        p.add_argument("--max-tokens", type=int, default={"gap": 2000, "articles": 1200, "cefr": 1500, "audit": 2500}[name])
+        p.add_argument("--max-tokens", type=int, default={"gap": 2000, "articles": 1200, "cefr": 1500,
+                                                          "audit": 2500, "sense": 2500}[name])
         p.add_argument("--limit", type=int, default=0, help="只跑前 N 项（小样试跑）")
         if name == "audit":
             p.add_argument("--only", choices=["all", "llm", "handedict", "dict", "dict-nonllm"], default="all")
             p.add_argument("--sample", type=int, default=0, help="随机抽样 N 条（配合 --seed）")
             p.add_argument("--seed", type=int, default=20260927)
+        if name == "sense":
+            p.add_argument("--min-freq", type=int, default=100, help="只看词频 ≥ N 的词")
     p = sub.add_parser("levels")
     p = sub.add_parser("report")
     args = ap.parse_args()
     {"gap": cmd_gap, "articles": cmd_articles, "cefr": cmd_cefr, "audit": cmd_audit,
-     "levels": cmd_levels, "report": cmd_report}[args.cmd](args)
+     "sense": cmd_sense, "levels": cmd_levels, "report": cmd_report}[args.cmd](args)
 
 
 if __name__ == "__main__":

@@ -102,13 +102,18 @@ if (-not (Test-Path -LiteralPath $cli)) {
 } elseif (-not (Test-Path -LiteralPath $qj)) {
     Warn '词表不在位，跳过'
 } else {
-    # qingjian-cli 把日志写到 stderr，PS 5.1 在 ErrorActionPreference=Stop 下会当成致命错误
+    # qingjian-cli 把日志写到 stderr，PS 5.1 在 ErrorActionPreference=Stop 下会当成致命错误；
+    # 那句 `glosses=…` 是 INFO 级日志，必须显式打开 RUST_LOG=info 才会打（不然只剩查询结果，数不出条数）
     $eap = $ErrorActionPreference
+    $rustLog = $env:RUST_LOG
     $ErrorActionPreference = 'Continue'
+    $env:RUST_LOG = 'info'
     try {
         $cliOut = (& $cli --dict $dict --glossary $qj --language de --limit 1 -- xuexiao 2>&1 | Out-String)
     } finally {
         $ErrorActionPreference = $eap
+        if ($null -eq $rustLog) { Remove-Item Env:RUST_LOG -ErrorAction SilentlyContinue }
+        else { $env:RUST_LOG = $rustLog }
     }
     $m = [regex]::Match($cliOut, 'glosses=(\d+)')
     if ($m.Success -and [int]$m.Groups[1].Value -ge 200000) {

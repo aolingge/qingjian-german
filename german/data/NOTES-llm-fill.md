@@ -71,6 +71,39 @@
   （`艾莎 Elsa → Aisha`、`福瑞 → Furry`、`鸭苗 das Entenküken → die Entenküken`、`田子 das Feld → der Sohn`）；
   四条过滤器后抽样损坏率约 5%，`田子` 这类残余仍需人工复核。
 
+## 第五轮：常用义修正（sense）+ 等级表补兜底（2026-09-27）
+
+起因：HanDeDict 有些词只留了生僻义项 —— `权利` 是 `die Anwartschaft`、`便宜` 是 `geeignet`。
+青简自带**英语**表 `assets/glossary/glossary-en.tsv`（232,213 行，一个词可有多条义项、行内 TAB 分隔、带词性前缀）
+正好是现成的第二意见。
+
+- **sense**（`tools/llm_tools.py sense`，2,938 批 / 0 失败）：只对德语 ∩ 英语 ∩ 词库的 **88,112 个词**
+  问「常用义是不是明显不对」，提示里给英语表全部义项；输出 `词\t词性. 建议义`（1–3 条用 `; ` 分隔，名词必须带冠词）
+  → `llm-sense.tsv` **36,418 条**（41% 被标）。注意小样里大量标记其实是「顺序不同但已有该义」（`但`/`现在`/`今天`）
+  或词性归属问题（`在`/`为`/`于`/`以`/`跟` 被 HanDeDict 记成 `v.`/`n.`），所以**不能直接整体替换**。
+- **落地规则**（`apply_fixes.py` 新增第 4 段「常用义修正」，仍是默认干跑、`--apply` 才写）：
+  1) 词频 <100 跳过（16,224 条）：生僻词没有第二意见、错了也没人用。代价是连明显合理的建议也一起放过
+     （`憋闷 → bedrückt; beklommen; stickig`、`一股脑儿 → alles zusammen`）；
+  2) 只增不删：新义项去掉旧表已有的重复后插到最前，旧义项保留 → 采纳 **14,422 条**
+     （`权利 → das Recht; der Anspruch; die Anwartschaft`、`军人 → der Soldat`、`天气 → das Wetter; die Witterung`）；
+  3) 词性变更需英语表佐证（新词性 ∈ 英语表该词词性集合、旧词性 ∉、词频 ≥1000）→ 通过 716 条
+     （`跟 → prep. mit; und`）、拒绝 1,709 条；
+  4) 冠词表（`add_articles2.load_genders`）整词命中结果与新义项冠词不一致 → 丢掉 225 条（`垂水` 等）。
+  `apply-report.txt` 现在 **77,047 行**（第四轮 38,885 + 第五轮），四类标记：
+  `[冠词]` 34,703、`[常用义]` 13,706、`[修正]` 3,692、`[新增]` 147、`[拒绝·…]` 2,012、`[清垃圾]` 40。
+- **levels 重建**：新增月份 / 星期 / 季节 / 度量衡的 A1–A2 兜底词表（`Jahrhundert`、`Kilobyte`、`Lauf` 走 A2），
+  复合词退化阈值 5 → 4 字符；键数 165,143 → **170,638 / 4,578,096 B**
+  （A1 28,605 / A2 15,930 / B1 28,977 / B2 38,108 / C1 22,328 / C2 36,690）。
+  运行时按释义整串小写精确匹配，**205,333 行命中 100%**（11,649 条无可靠依据走 B2/A1 兜底）。
+- **打包部署**：`glossary-de.qj` 15,490,832 B / 205,333 条 / sha256 `E1908475…AC34E`；
+  `levels-de.tsv` 4,578,096 B；两份产物都已装到本机，`verify-de.ps1` 全绿。
+- **质量**：采纳的抽样看着合理（`腰斩 → halbieren; in zwei Hälften teilen`、`裤脚 → das Hosenbein; der Hosensaum`、
+  `苗条 → schlank; schmal; zierlich`、`称道 → loben; anerkennen; rühmen`），但也有词频过线仍被硬猜的
+  （`森饰 → der Waldschmuck; Mori Shiki` —— 这个词其实只是和制词/人名，`der Waldschmuck` 是字面直译）。
+- **坑（新）**：`verify-de.ps1` 的 2b 段偶发失败 —— `qingjian-cli` 的 `glosses=…` 是 **INFO 级日志**，
+  只有 `RUST_LOG=info` 才打印；脚本现在在调用前后临时设置 / 还原该变量。
+- **坑（旧，重跑仍要注意）**：CLI 用**汉字**直接查（`-- xuexiao` 才是拼音路径），给汉字会走英语表（显示 `[en]`）。
+
 ## 验证方式
 - `qingjian-cli --language de --dict D:\application\Qingjian\data\generated\dict.qj --glossary <qj> --limit 5 -- <拼音…>`，启动日志有 `加载完成 … glosses=N`。
   （`--dict` 必须显式给，否则按相对路径找 `data/generated/dict.qj` 报 os error 3。）

@@ -21,12 +21,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import add_articles2          # 复用它的冠词表（gender/nouns.csv + 复数栏 + 专名表）
+import llm_tools              # 复用它的英语表读取与词库词频（read_en / read_dict）
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.join(HERE, "glossary-de-merged.tsv")
 FINAL = os.path.join(HERE, "glossary-de-final.tsv")
 REPORT = os.path.join(HERE, "apply-report.txt")
 LEGAL_POS = ("n", "v", "adj", "adv", "int", "pron", "num", "prep", "conj", "part", "phr", "m")
+SENSE_MIN_FREQ = 100          # 常用义修正只认词频 ≥100 的词：更生僻的词模型多半在猜（森饰→Waldschmuck）
 POS_ANY = re.compile(r"^([A-Za-zÄÖÜäöüß]{1,10})\.\s")
 ART_LINE = re.compile(r"^n\.\s+(.*)$")
 # 真正的垃圾：占位符 / 只有符号（`*** löschen`、`n. ???`）。释义里出现 löschen、unbekannt 是正常译文
@@ -175,10 +177,91 @@ def main() -> int:
         report.append(f"[修正] {w}\n    旧: {old}\n    新: {fix}")
 
     rows = [r for r in rows if r[1]]
+
+    # 4) 常用义修正（sense）
+    #    模型拿英语表当第二意见，指出「这条词给的德语是生僻义」。落地规则：
+    #    A 词性不变 → 把**旧表里没有的**新义项插到最前面，旧义项原样保留（纯增信息，最坏是多一个义项）
+    #    B 词性变了 → 只有英语表也支持新词性、且不支持旧词性、且词频 ≥1000 时才整体替换（有独立佐证）
+    en, freq = llm_tools.read_en(), dict(llm_tools.read_dict())
+    n_sense = n_sense_noop = n_sense_pos = n_sense_bad = 0
+
+    def toks(body):
+        return [s.strip() for s in re.split(r"[;,，、]", body) if s.strip()]
+
+    def tkey(s):
+        return ART_HEAD.sub(r"\2", s).strip().lower()      # 比义项时忽略冠词，der Tag == Tag
+
+    def dup(s, olds):
+        # 完全相同，或只是带/不带括注、多一个词尾（der Sporn vs der Sporn (Reitsport)、autsch vs autsch !）
+        k = tkey(s)
+        return any(k == tkey(o) or (len(k) >= 3 and (tkey(o).startswith(k) or k.startswith(tkey(o))))
+                   for o in olds)
+
+    n_sense_rare = n_sense_art = 0
+    for w, fix in sorted(read_kv(os.path.join(HERE, "llm-sense.tsv")).items()):
+        i = index.get(w)
+        if i is None:
+            n_sense_bad += 1
+            continue
+        if freq.get(w, 0) < SENSE_MIN_FREQ:                # 生僻词模型多半在硬猜（森饰→Waldschmuck），不采纳
+            n_sense_rare += 1
+            continue
+        old, fix = rows[i][1], fix.strip()
+        pm_new, pm_old = POS_ANY.match(fix), POS_ANY.match(old)
+        if not (pm_new and pm_new.group(1).lower() in LEGAL_POS):
+            n_sense_bad += 1
+            report.append(f"[拒绝·词性非法] {w}\t{fix[:60]}")
+            continue
+        pos_new = pm_new.group(1).lower()
+        pos_old = pm_old.group(1).lower() if pm_old else ""
+        new_s, old_s = toks(POS_ANY.sub("", fix, count=1)), toks(POS_ANY.sub("", old, count=1))
+        missing = [s for s in new_s if not dup(s, old_s)]
+        if not missing:
+            n_sense_noop += 1                              # 常用义其实已经有了
+            continue
+        kept = []
+        for s in missing:
+            if not dup(s, kept):
+                kept.append(s)
+        missing = kept
+        # 新义项里的名词冠词用冠词表核一遍：表里**整词命中**又和模型给的冠词不一致时，整条新义项丢掉。
+        # （改写成表里的冠词反而更糟：der Vorgesetzte/Angestellte/Erwachsene 这类弱变化名词表里记的是阴性，
+        #  289 条改写里大半会把对的改错；只丢不加，最坏是少一条义项。）
+        fixed = []
+        for s in missing:
+            m = ART_HEAD.match(s)
+            if m:
+                ref, how = add_articles2.article_for(
+                    add_articles2.head_token("n. " + m.group(2)), table, plurals, proper_only)
+                if ref and how == "整词命中" and ref != m.group(1).lower():
+                    n_sense_art += 1
+                    report.append(f"[常用义·冠词表说 %s，丢掉] {w}\t{s}" % ref)
+                    continue
+            fixed.append(s)
+        missing = fixed
+        if not missing:
+            n_sense_noop += 1
+            continue
+        if pos_new != pos_old:
+            en_pos = {p.lower() for p in POS_ANY.findall(" ".join(en.get(w, "")))}
+            if not (pos_new in en_pos and pos_old not in en_pos and freq.get(w, 0) >= 1000):
+                n_sense_pos += 1
+                report.append(f"[拒绝·改词性无佐证] {w}\t{old} → {fix}")
+                continue
+            rows[i][1] = f"{pos_new}. " + "; ".join(missing[:3])
+            n_sense += 1
+            report.append(f"[常用义·换词性] {w}\t旧: {old}\n    新: {rows[i][1]}")
+            continue
+        rows[i][1] = f"{pos_old}. " + "; ".join((missing + old_s)[:4])
+        n_sense += 1
+        report.append(f"[常用义] {w}\t旧: {old}\n    新: {rows[i][1]}")
+
     print(f"新增缺口词 {n_gap:,}；补冠词 {n_art:,}（跳过 {n_art_skip:,}）；"
           f"质检修正 {n_fix:,}（复述原文忽略 {n_same:,}，非法拒绝 {n_bad:,}，"
           f"只换冠词拒绝 {n_artflip:,}，冠词表否决 {n_artref:,}，改词性拒绝 {n_pos:,}，"
-          f"臆改专名拒绝 {n_spell:,}）；删除碎片 {n_drop:,}")
+          f"臆改专名拒绝 {n_spell:,}）；删除碎片 {n_drop:,}；"
+          f"常用义修正 {n_sense:,}（已覆盖忽略 {n_sense_noop:,}，词频<{SENSE_MIN_FREQ} 跳过 {n_sense_rare:,}，"
+          f"改词性无佐证拒绝 {n_sense_pos:,}，冠词表不一致丢掉 {n_sense_art:,}，非法/缺词 {n_sense_bad:,}）")
     print(f"结果 {len(rows):,} 行 → {args.out}")
     if args.apply:
         with open(args.out, "w", encoding="utf-8", newline="\n") as f:
