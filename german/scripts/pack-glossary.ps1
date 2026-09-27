@@ -12,6 +12,7 @@ param(
     [Alias('Input')]
     [string]$InputTsv = 'E:\codemain\qingjian-de\de-glossary\glossary-de-final.tsv',
     [string]$OutDir  = 'E:\codemain\qingjian-de\de-glossary\out',
+    [string]$Levels  = 'E:\codemain\qingjian-de\de-glossary\levels\levels-de.tsv',
     [string]$Convert = 'C:\Users\aolin\AppData\Local\Temp\codex-qingjian-source-20260926\target\release\qingjian-dict-convert.exe',
     [string]$DataVersion = (Get-Date -Format 'yyyy-MM-dd'),
     [string]$Install = 'D:\application\Qingjian',
@@ -47,6 +48,20 @@ if ($Deploy) {
         try { Copy-Item -LiteralPath $qj -Destination $dst -Force -ErrorAction Stop
               Write-Output "已部署到 $dst（第 $i 次尝试）"; break }
         catch { if ($i -eq 12) { throw }; Start-Sleep -Milliseconds 600 }
+    }
+    # 顺带部署等级表（assets\levels\levels-de.tsv），旧表留一份带日期的备份
+    $lvl = $Levels
+    if ($lvl -and (Test-Path -LiteralPath $lvl)) {
+        $ldst = Join-Path $Install 'assets\levels\levels-de.tsv'
+        if (Test-Path -LiteralPath $ldst) {
+            $bak = "$ldst.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Copy-Item -LiteralPath $ldst -Destination $bak -Force
+            Write-Output "旧等级表已备份到 $bak"
+        }
+        Copy-Item -LiteralPath $lvl -Destination $ldst -Force
+        Write-Output ("已部署到 {0}（{1:N0} B）" -f $ldst, (Get-Item -LiteralPath $ldst).Length)
+    } else {
+        Write-Output "跳过等级表部署（找不到 $lvl）"
     }
 }
 

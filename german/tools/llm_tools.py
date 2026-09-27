@@ -43,7 +43,7 @@ ENV = os.path.join(os.environ["APPDATA"], r"Qingjian\.env")
 MODEL = "deepseek-v4-flash"
 URL = "https://api.deepseek.com/chat/completions"
 
-POS_PREFIX = re.compile(r"^(n|v|adj|adv|int|pron|num|prep|conj|part|phr|m)\.\s+", re.I)
+POS_PREFIX = re.compile(r"^(n|noun|v|verb|adj|adv|int|interj|pron|num|prep|conj|part|phr|phrase|mw|m)\.\s+", re.I)
 ANY_PREFIX = re.compile(r"^([A-Za-zÄÖÜäöüß]{1,10})\.\s+")
 ARTICLES = ("der ", "die ", "das ")
 LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]

@@ -111,3 +111,45 @@
 - 覆盖统计：`audit.py`（行数/重复/空/缺冠词/BOM/CR）、`gap_in_dict.py`（词库覆盖率）。
 - 坑：pwsh 里 `[IO.File]::WriteAllLines('相对路径', …)` 会写到**进程 CWD**（不是 PowerShell 的 `cd` 位置），
   一律用绝对路径。
+
+## 第六轮：自检修复（中文残留 / 冠词硬错 / 定级补到 100%）
+
+前五轮都在「让 LLM 改表」，没人系统性查过表本身。第六轮先写体检脚本 `tools/audit_final.py`（五项），再按结论修。
+
+- **`audit_final.py` 五项**：① 运行时等级查表覆盖率（复刻 Rust `parse_sense`）② 德语正文里的 CJK 残留
+  ③ 非法词性前缀 / 空正文 ④ 冠词与 `german-nouns` 冲突（整词同形、排除复数写法）⑤ 词性分布。
+  跑法：`python tools\audit_final.py data\glossary-de-final.tsv data\levels-de.tsv data\gender\nouns.csv`。
+- **口径坑（先踩后修）**：脚本一开始把 `M.` 当非法词性、把复数名词（`die Möbel`、`die Stiefel`）报成冠词冲突
+  → 误报 117 条。Rust 侧 `PartOfSpeech::from_str` 会 `to_ascii_lowercase()`，`M.`（量词）是合法的；
+  `german-nouns` 的复数在 `nominativ plural` 列（索引 16，表头 `lemma,pos,genus,…,nominativ plural`），
+  `genus` 值是 `m/f/n` 而不是 `1/2/3`。对齐后**冲突只剩 14 条，逐条看全部合理**（`die PIN`、`die ETA`、
+  `der Hähnchenflügel`、`die Gastropode`、`die Elbe`、`die Tao`、`der Weiße`、`das Frankolin`、`das Faszikel`、
+  `der Gemeine`、`die Knickerbocker`、`das Berberin`、`das Hundert`、`der Pi`）。
+- **修掉的硬错（共 57 条进入 `glossary-de-final.tsv`）**：
+  - **中文残留 2 条**：`凉凉送`、`凉送给` 的正文是 `v. (网络用语) 冷落、忽视` → 改为
+    `v. (Netzjargon) jdn. links liegen lassen, ignorieren`；`apply_fixes.py` 的质检段新增
+    「中文残留守卫」（旧正文无 CJK、提案含 CJK → 拒绝，共拦下 13 条）。
+  - **冠词硬错 41 条**（逐条人工核对）：`岁数/年龄/庚/龄/老伴儿 → das Alter`、`馋猫 → die Naschkatze`、
+    `醋精 → die Essigessenz`、`午餐肉 → das Frühstücksfleisch`、`爵床 → der Akanthus`、
+    `湖滨 → das Seeufer`、`独幕剧 → der Einakter`、`升麻 → das Wanzenkraut`、`垫脚石 → das Sprungbrett`、
+    `天灵盖 → das Schädeldach`、`益母草 → das Mutterkraut`、`廊檐 → das Vordach`、`炮筒子 → das Kanonenrohr`、
+    `复句 → das Satzgefüge`、`猯 → das Wildschwein`、`蛀牙 → die Karies`、`平房 → der Bungalow`、
+    `话痨 → die Quasselstrippe`、`瞌睡虫 → die Schlafmütze`、`闲职 → die Sinekure`、`鳊鱼 → die Brasse`、
+    `汆子 → die Schöpfkelle`、`蛴螬 → der Engerling`、`瀱 → das Quellwasser`、`马弁 → die Ordonnanz`、
+    `卡普 → das Kap`、`广角 → das Weitwinkel`、`可丽饼/法式煎饼/薄饼卷 → der Crêpe` 等。
+  - **缺词性前缀 1 条**：`奈特·沙马兰 → M. Night Shyamalan`（`M.` 会被当量词）→ 补成 `n. M. Night Shyamalan`。
+  - **落地方式**：新增 `data/fixes.tsv`（44 条，制表符分隔「词<TAB>整条新释义」，优先级最高），
+    `apply_fixes.py` 多出第 5 段「手工覆盖」（`import` 都不需要，读表覆盖即可）。
+- **复检结果**：定级 **205,333 / 205,333 = 100.00%**；CJK 只剩 4 行且全是谚文注释
+  （`李俊基 Lee, Jun-Gi (이준기 …)`、`李多海`、`釜山`、`韩元`）；空正文 0；
+  无词性前缀 40,095 行（HanDeDict 原生，`10月11日 → 11. Oktober` 这类，预期且无害）；
+  冠词冲突 14 条全部合理。词性分布：`n.` 111,664 / 无 40,095 / `v.` 26,986 / `adj.` 15,398 / `phr.` 7,457 /
+  `adv.` 1,922 / `int.` 552 / `num.` 383 / `pron.` 333 / `conj.` 209 / `part.` 155 / `m.` 116 / `prep.` 63。
+- **产物**：`glossary-de-final.tsv` 205,333 行 / 7,398,081 B（旧版备份 `glossary-de-final.tsv.bak6`）；
+  `apply-report.txt` 55,286 条；`levels-de.tsv` 170,620 键 / 4,577,613 B
+  （A1 28,602 / A2 15,930 / B1 28,970 / B2 38,104 / C1 22,324 / C2 36,690，11,647 条兜底）；
+  `dist/glossary-de.qj` 15,490,632 B / sha256 `65E213F3…175ED`。
+- **打包脚本改进**：`scripts/pack-glossary.ps1 -Deploy` 现在顺带部署 `assets/levels/levels-de.tsv`
+  （旧表自动备份成 `levels-de.tsv.bak-yyyyMMdd-HHmmss`），部署从两条命令变一条。
+- **坑（复述）**：`llm_tools.py` 的 `POS_PREFIX` 已扩到 Rust 的全别名集
+  （`n|noun|v|verb|adj|adv|int|interj|pron|num|prep|conj|part|phr|phrase|mw|m`），别只写 `n|v|…` 那 12 个短写。

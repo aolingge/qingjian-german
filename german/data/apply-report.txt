@@ -36245,9 +36245,7 @@
 [修正] 偶感
     旧: n. das gelegentliche Gefühl
     新: n. der Gelegenheitseinfall
-[修正] 偶滴
-    旧: pron. mein
-    新: pron. mein (scherzhafte Schreibweise von 我的)
+[拒绝·新释义混中文] 偶滴	pron. mein → pron. mein (scherzhafte Schreibweise von 我的)
 [修正] 偷井
     旧: v. einen Brunnen stehlen
     新: v. einen Brunnen graben
@@ -36586,18 +36584,14 @@
 [修正] 准高速
     旧: adj. halbschnell
     新: adj. mit halber Hochgeschwindigkeit
-[修正] 凉凉送
-    旧: v. kühl senden
-    新: v. (网络用语) 冷落、忽视
+[拒绝·新释义混中文] 凉凉送	v. kühl senden → v. (网络用语) 冷落、忽视
 [修正] 凉帽
     旧: n. der Sonnenhut
     新: n. der Strohhut
 [修正] 凉送
     旧: v. kalt senden
     新: v. kühl servieren
-[修正] 凉送给
-    旧: v. kalt geben
-    新: v. (网络用语) 冷落、忽视
+[拒绝·新释义混中文] 凉送给	v. kalt geben → v. (网络用语) 冷落、忽视
 [修正] 减越肥
     旧: v. abnehmen
     新: v. abnehmen (durch Übergewichtsreduktion)
@@ -37766,9 +37760,7 @@
 [修正] 喀麦
     旧: n. das Kamerun
     新: n. Kamerun
-[修正] 善化
-    旧: v. verbessern
-    新: v. verbessern (veraltete Schreibweise für 善化)
+[拒绝·新释义混中文] 善化	v. verbessern → v. verbessern (veraltete Schreibweise für 善化)
 [修正] 善类
     旧: n. der gute Mensch
     新: n. der anständige Mensch
@@ -39050,9 +39042,7 @@
 [修正] 导流
     旧: v. ableiten
     新: v. den Wasserfluss leiten
-[修正] 导自演
-    旧: phr. selbst Regie führen und spielen
-    新: phr. selbst Regie führen und spielen (aus 自导自演)
+[拒绝·新释义混中文] 导自演	phr. selbst Regie führen und spielen → phr. selbst Regie führen und spielen (aus 自导自演)
 [修正] 导诊
     旧: n. die Diagnoseführung
     新: n. die Patientenführung
@@ -42281,9 +42271,7 @@
 [修正] 烊千玺
     旧: n. der Yang Qianxi
     新: n. der Yi Yangqianxi
-[修正] 烊千玺帅
-    旧: phr. Yang Qianxi ist gutaussehend
-    新: phr. 易烊千玺 ist gutaussehend
+[拒绝·新释义混中文] 烊千玺帅	phr. Yang Qianxi ist gutaussehend → phr. 易烊千玺 ist gutaussehend
 [修正] 烛泪
     旧: n. das Kerzenwachs
     新: n. die Wachstropfen der Kerze
@@ -42929,9 +42917,7 @@
     新: n. der Wildfang; der Lausejunge
 [拒绝·只换冠词] 皮虾	n. die Fangschreckenkrebs → n. der Fangschreckenkrebs
 [拒绝·只换冠词] 皮褥子	n. der Pelzmatratze → n. die Pelzmatratze
-[修正] 盆友
-    旧: n. der Freund
-    新: n. der Freund (scherzhaft für 朋友)
+[拒绝·新释义混中文] 盆友	n. der Freund → n. der Freund (scherzhaft für 朋友)
 [修正] 益生
     旧: n. das Probiotikum
     新: n. probiotisch
@@ -43851,9 +43837,7 @@
 [修正] 考必过
     旧: phr. Prüfung bestehen
     新: phr. die Prüfung sicher bestehen
-[修正] 者们
-    旧: n. die Leute
-    新: n. die (Plural von 者)
+[拒绝·新释义混中文] 者们	n. die Leute → n. die (Plural von 者)
 [修正] 而今
     旧: adv. heute
     新: adv. jetzt; heutzutage
@@ -43976,9 +43960,7 @@
 [修正] 胸大
     旧: adj. busenig
     新: adj. mit großer Brust
-[修正] 胸弟
-    旧: n. der Bruder
-    新: n. der Bruder (scherzhaft für 兄弟)
+[拒绝·新释义混中文] 胸弟	n. der Bruder → n. der Bruder (scherzhaft für 兄弟)
 [修正] 胸臆
     旧: n. das Herz
     新: n. die Brust
@@ -53528,8 +53510,8 @@
     新: v. satt machen; füttern; sättigen
 [常用义] 善人	旧: n. der Wohltäter
     新: n. der gute Mensch; der Menschenfreund; der Wohltäter
-[常用义] 善化	旧: v. verbessern (veraltete Schreibweise für 善化)
-    新: v. veredeln; verbessern (veraltete Schreibweise für 善化)
+[常用义] 善化	旧: v. verbessern
+    新: v. veredeln; verbessern
 [常用义] 善变	旧: adj. anpassungsfähig
     新: adj. launisch; wankelmütig; unbeständig; anpassungsfähig
 [常用义] 善后	旧: v. den Nachlass regeln
@@ -64604,8 +64586,8 @@
     新: v. heilen; behandeln; regieren; ausrotten (Pest etc)
 [常用义] 治今	旧: v. heute regieren
     新: v. heute als ... bekannt sein; heute regieren
-[常用义] 治十	旧: phr. zehn regieren
-    新: phr. （无常用义; 疑为专名或误词）; zehn regieren
+[常用义·新义混中文，丢掉] 治十	（无常用义
+[常用义·新义混中文，丢掉] 治十	疑为专名或误词）
 [常用义] 治十五	旧: phr. fünfzehn Regierungsjahre
     新: phr. fünfzehn Jahre regieren; fünfzehn Regierungsjahre
 [常用义] 治国	旧: v. ein Land regieren
@@ -65432,8 +65414,7 @@
     新: v. sich aufhalten; festsitzen; gestrandet sein; stehenbleiben
 [常用义] 满了	旧: adj. voll
     新: adj. ausgebucht; besetzt; voll
-[常用义] 满口	旧: adj. den Mund voll
-    新: adj. voller (z. B. 满口谎言); den Mund voll
+[常用义·新义混中文，丢掉] 满口	voller (z. B. 满口谎言)
 [常用义] 满员	旧: v. voll besetzt sein
     新: v. vollzählig sein; voll besetzt sein
 [拒绝·改词性无佐证] 满嘴	phr. voller Mund → adj. den Mund voll (mit); voller (Worte)
@@ -69947,8 +69928,7 @@
 [常用义] 考评	旧: n. fachgerechte Bewertung
     新: n. die Bewertung; die Beurteilung; die Leistungsbewertung; fachgerechte Bewertung
 [拒绝·改词性无佐证] 者	pron. derjenige, welcher → part. derjenige, der; wer
-[常用义] 者们	旧: n. die (Plural von 者)
-    新: n. die Leute; die (Plural von 者)
+[常用义·新义混中文，丢掉] 者们	die (Plural von 者)
 [常用义] 者皆	旧: phr. alle, die
     新: phr. jeder; der; alle; die
 [常用义·冠词表说 die，丢掉] 耆	der Alte
@@ -77045,3 +77025,135 @@
     新: n. die Rangliste; die Bestenliste; die Billboard-Charts
 [常用义] 龙骨	旧: n. das Fossil
     新: n. der Kiel; das Fossil
+[手工覆盖] 凉凉送
+    旧: v. kühl senden
+    新: v. (Netzjargon) jdn. links liegen lassen, ignorieren
+[手工覆盖] 凉送给
+    旧: v. kalt geben
+    新: v. (Netzjargon) jdn. links liegen lassen, ignorieren
+[手工覆盖] 升麻
+    旧: n. der Wanzenkraut
+    新: n. das Wanzenkraut
+[手工覆盖] 午餐肉
+    旧: n. der Frühstücksfleisch
+    新: n. das Frühstücksfleisch
+[手工覆盖] 卡普
+    旧: n. der Kap
+    新: n. das Kap
+[手工覆盖] 可丽饼
+    旧: n. die Crêpe, bretonischer Eierkuchen
+    新: n. der Crêpe, bretonischer Eierkuchen
+[手工覆盖] 垫脚石
+    旧: n. der Sprungbrett
+    新: n. das Sprungbrett
+[手工覆盖] 复句
+    旧: n. der Satzgefüge
+    新: n. das Satzgefüge
+[手工覆盖] 天灵盖
+    旧: n. der Schädeldach
+    新: n. das Schädeldach
+[手工覆盖] 奈特·沙马兰
+    旧: M. Night Shyamalan
+    新: n. M. Night Shyamalan
+[手工覆盖] 岁数
+    旧: n. der Alter, das Lebensjahr
+    新: n. das Alter, das Lebensjahr
+[手工覆盖] 平房
+    旧: n. das Bungalow
+    新: n. der Bungalow
+[手工覆盖] 年龄
+    旧: n. der Alter, das Lebensalter
+    新: n. das Alter, das Lebensalter
+[手工覆盖] 广角
+    旧: n. der Weitwinkel
+    新: n. das Weitwinkel
+[手工覆盖] 庚
+    旧: n. der Alter
+    新: n. das Alter
+[手工覆盖] 廊檐
+    旧: n. der Vordach
+    新: n. das Vordach
+[手工覆盖] 戈贝
+    旧: n. der Kopeke
+    新: n. die Kopeke
+[手工覆盖] 戏精
+    旧: n. der Dramaqueen
+    新: n. die Dramaqueen
+[手工覆盖] 汆子
+    旧: n. der Schöpfkelle
+    新: n. die Schöpfkelle
+[手工覆盖] 沙姆
+    旧: n. der Scham
+    新: n. die Scham
+[手工覆盖] 法式煎饼
+    旧: n. die Crêpe
+    新: n. der Crêpe
+[手工覆盖] 湖滨
+    旧: n. der Seeufer
+    新: n. das Seeufer
+[手工覆盖] 溶胶
+    旧: n. der Sol
+    新: n. das Sol
+[手工覆盖] 瀱
+    旧: n. die Quellwasser
+    新: n. das Quellwasser
+[手工覆盖] 炮筒子
+    旧: n. der Kanonenrohr
+    新: n. das Kanonenrohr
+[手工覆盖] 爵床
+    旧: n. die Akanthus
+    新: n. der Akanthus
+[手工覆盖] 牁
+    旧: n. der Anlegestelle
+    新: n. die Anlegestelle
+[手工覆盖] 牌子的
+    旧: n. der Marke
+    新: n. die Marke
+[手工覆盖] 独幕剧
+    旧: n. das Einakter
+    新: n. der Einakter
+[手工覆盖] 猯
+    旧: n. der Wildschwein
+    新: n. das Wildschwein
+[手工覆盖] 益母草
+    旧: n. der Mutterkraut
+    新: n. das Mutterkraut
+[手工覆盖] 瞌睡虫
+    旧: n. der Schlafmütze
+    新: n. die Schlafmütze
+[手工覆盖] 老伴儿
+    旧: n. der Alter, die Alte (Bezeichnung für einen Ehepartner)
+    新: n. das Alter, die Alte (Bezeichnung für einen Ehepartner)
+[手工覆盖] 英羽球
+    旧: n. das Federball
+    新: n. der Federball
+[手工覆盖] 薄饼卷
+    旧: n. die Crêpe
+    新: n. der Crêpe
+[手工覆盖] 蛀牙
+    旧: n. der Karies
+    新: n. die Karies
+[手工覆盖] 蛴螬
+    旧: n. die Engerling
+    新: n. der Engerling
+[手工覆盖] 话痨
+    旧: n. der Quasselstrippe
+    新: n. die Quasselstrippe
+[手工覆盖] 醋精
+    旧: n. der Essigessenz
+    新: n. die Essigessenz
+[手工覆盖] 闲职
+    旧: n. das Sinekure
+    新: n. die Sinekure
+[手工覆盖] 馋猫
+    旧: n. der Naschkatze
+    新: n. die Naschkatze
+[手工覆盖] 马弁
+    旧: n. der Ordonnanz
+    新: n. die Ordonnanz
+[手工覆盖] 鳊鱼
+    旧: n. der Brasse
+    新: n. die Brasse
+[手工覆盖] 龄
+    旧: n. der Alter, Jahre
+    新: n. das Alter, Jahre

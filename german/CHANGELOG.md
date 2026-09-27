@@ -1,5 +1,36 @@
 # 改动记录
 
+## 2026-09-27 —— 第六轮：自检修复（中文残留 / 冠词硬错 / 定级补到 100%）
+
+**释义表仍是 205,333 条，其中 57 条被纠正**（`dist/glossary-de.qj` 15,490,832 → 15,490,632 B，sha256 `65e213f3…`）
+**等级表 170,638 → 170,620 条可定级，运行时命中率补到 205,333 / 205,333 = 100.00%**
+
+- **起因**：前五轮都是「让 LLM 改表」，没人系统性地查过表本身。这一轮先写体检脚本
+  `tools/audit_final.py`（五项：定级覆盖率、中文残留、词性前缀 / 空正文、冠词与 `german-nouns` 冲突、词性分布），
+  再按体检结论逐项修。
+- **发现并修的硬错**：
+  - **中文残留 2 条**：`凉凉送`、`凉送给` 的德语正文是 `v. (网络用语) 冷落、忽视`（整段中文）——
+    已在 `apply_fixes.py` 加「中文残留守卫」（旧正文无 CJK、提案含 CJK → 拒绝，共拦下 13 条），
+    这两条改用 `v. (Netzjargon) jdn. links liegen lassen, ignorieren`。
+  - **冠词硬错 41 条**：`german-nouns` 与词表逐词比对后发现 `岁数/年龄/庚/龄/老伴儿` 是
+    `der Alter`（错）而不是 `das Alter`、`馋猫` 是 `der Naschkatze`（错）而不是 `die Naschkatze`、
+    `午餐肉 → das Frühstücksfleisch`、`蛀牙 → die Karies`、`垫脚石 → das Sprungbrett` 等。
+  - **缺词性前缀 1 条**：`奈特·沙马兰 → M. Night Shyamalan`——`M.` 被青简当成量词（合法词性），
+    已补成 `n. M. Night Shyamalan`。
+  - **落地方式**：新增 `data/fixes.tsv`（44 条人工核对过的覆盖，优先级高于所有 LLM 提案），
+    `apply_fixes.py` 多出第 5 段「手工覆盖」。
+- **自检口径修正**：`audit_final.py` 最初把 `M.` 当非法词性、把复数名词（`die Möbel`、`die Stiefel`）报成
+  冠词冲突，误报 117 条。对齐 Rust 的 `parse_sense`（`PartOfSpeech::from_str` 会 `to_ascii_lowercase()`）
+  与 `german-nouns` 的 `nominativ plural` 列后：**冲突只剩 14 条，逐条看全部合理**
+  （`die PIN` / `die ETA` / `der Hähnchenflügel` / `die Elbe` / `die Knickerbocker`）。
+- **等级表**：键数 170,620（A1 28,602 / A2 15,930 / B1 28,970 / B2 38,104 / C1 22,324 / C2 36,690），
+  11,647 条按 B2/A1 兜底；`audit_final.py` 复检 **205,333 / 205,333 = 100.00%**。
+- **打包脚本**：`scripts/pack-glossary.ps1 -Deploy` 现在会一并部署 `assets/levels/levels-de.tsv`
+  （旧表自动存成 `levels-de.tsv.bak-<日期>`），不必再手动拷等级表。
+
+验证（本机实测）：`audit_final.py` 五项全绿（定级 100%、CJK 仅剩 4 条谚文注释、空正文 0、冠词冲突 14 条全都合理）；
+`scripts/verify-de.ps1` → 「通过（0 条提示）」，`glosses=205333`、levels 170,620 条、探针 `学校 → die Schule`。
+
 ## 2026-09-27 —— 第五轮：常用义修正（拿英语释义表当第二意见）
 
 **释义表仍是 205,333 条，其中 14,422 条的常用义被校正**（`dist/glossary-de.qj` 15,155,200 → 15,490,832 B，sha256 `e1908475…`）

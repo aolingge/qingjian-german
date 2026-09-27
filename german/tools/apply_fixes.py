@@ -34,6 +34,9 @@ ART_LINE = re.compile(r"^n\.\s+(.*)$")
 # 真正的垃圾：占位符 / 只有符号（`*** löschen`、`n. ???`）。释义里出现 löschen、unbekannt 是正常译文
 JUNK = re.compile(r"\*\*\*|\?{2,}|^\s*(n/?a|none|leer)\s*$", re.I)
 ART_HEAD = re.compile(r"^(der|die|das)\s+(.*)$", re.I)
+# 汉字/假名/谚文：德语列里只允许出现在「(scherzhaft für 朋友)」这类注释里，
+# 但模型偶尔整条替换成中文（凉凉送 → v. (网络用语) 冷落、忽视）→ 旧文没有而新文有，一律拒绝
+CJK = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]")
 
 
 def read_kv(path):
@@ -124,7 +127,7 @@ def main() -> int:
     #   模型很爱把名词冠词换个说法（鸭苗 das Entenküken → die Entenküken），这类「只动冠词」的改动
     #   没有依据、经常把对的改错，一律拒绝；冠词被 gender/nouns.csv 证实是对的，也拒绝。
     table, plurals, proper_only, _st = add_articles2.load_genders(add_articles2.GENDER_CSV)
-    n_artflip = n_artref = n_pos = n_spell = 0
+    n_artflip = n_artref = n_pos = n_spell = n_cjk = 0
     for w, fix in sorted(read_kv(os.path.join(HERE, "llm-audit.tsv")).items()):
         i = index.get(w)
         if i is None:
@@ -153,6 +156,10 @@ def main() -> int:
             continue
         # 专名拼写：旧新都是单个拉丁词、又几乎不像同一个词（Elsa→Aisha 这类臆改）→ 拒绝
         ob, nb = POS_ANY.sub("", old, count=1).strip(), POS_ANY.sub("", fix, count=1).strip()
+        if CJK.search(nb) and not CJK.search(ob):
+            n_cjk += 1
+            report.append(f"[拒绝·新释义混中文] {w}\t{old} → {fix}")
+            continue
         if (" " not in ob and " " not in nb and len(ob) >= 3 and len(nb) >= 3
                 and difflib.SequenceMatcher(None, ob.lower(), nb.lower()).ratio() < 0.6):
             n_spell += 1
@@ -229,6 +236,10 @@ def main() -> int:
         #  289 条改写里大半会把对的改错；只丢不加，最坏是少一条义项。）
         fixed = []
         for s in missing:
+            if CJK.search(s) and not CJK.search(old):
+                n_cjk += 1
+                report.append(f"[常用义·新义混中文，丢掉] {w}\t{s}")
+                continue
             m = ART_HEAD.match(s)
             if m:
                 ref, how = add_articles2.article_for(
@@ -256,12 +267,27 @@ def main() -> int:
         n_sense += 1
         report.append(f"[常用义] {w}\t旧: {old}\n    新: {rows[i][1]}")
 
+    # 5) 手工覆盖（fixes.tsv）：自检发现的、模型四轮都没修对的硬错误（冠词与 german-nouns 相反、
+    #    德语列写成中文、专名没有词性前缀导致定不了级）——人手核过，放在最后一步，优先级最高。
+    n_manual = 0
+    for w, g in sorted(read_kv(os.path.join(HERE, "fixes.tsv")).items()):
+        i = index.get(w)
+        if i is None:
+            report.append(f"[手工覆盖·词表里没有] {w}\t{g}")
+            continue
+        if rows[i][1] == g:
+            continue
+        report.append(f"[手工覆盖] {w}\n    旧: {rows[i][1]}\n    新: {g}")
+        rows[i][1] = g
+        n_manual += 1
+
     print(f"新增缺口词 {n_gap:,}；补冠词 {n_art:,}（跳过 {n_art_skip:,}）；"
           f"质检修正 {n_fix:,}（复述原文忽略 {n_same:,}，非法拒绝 {n_bad:,}，"
           f"只换冠词拒绝 {n_artflip:,}，冠词表否决 {n_artref:,}，改词性拒绝 {n_pos:,}，"
-          f"臆改专名拒绝 {n_spell:,}）；删除碎片 {n_drop:,}；"
+          f"臆改专名拒绝 {n_spell:,}，混中文拒绝 {n_cjk:,}）；删除碎片 {n_drop:,}；"
           f"常用义修正 {n_sense:,}（已覆盖忽略 {n_sense_noop:,}，词频<{SENSE_MIN_FREQ} 跳过 {n_sense_rare:,}，"
-          f"改词性无佐证拒绝 {n_sense_pos:,}，冠词表不一致丢掉 {n_sense_art:,}，非法/缺词 {n_sense_bad:,}）")
+          f"改词性无佐证拒绝 {n_sense_pos:,}，冠词表不一致丢掉 {n_sense_art:,}，非法/缺词 {n_sense_bad:,}）；"
+          f"手工覆盖 {n_manual:,}")
     print(f"结果 {len(rows):,} 行 → {args.out}")
     if args.apply:
         with open(args.out, "w", encoding="utf-8", newline="\n") as f:
