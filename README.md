@@ -29,7 +29,7 @@ https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
 
 候选词仍然是输入的主体，翻译只作为较小、较浅的辅助信息存在。
 
-**一次只学习一种语言。** 青简不会在一个候选项旁边同时塞入英语、日语、韩语、德语。保持输入体验干净，比堆砌信息更重要。
+**一次只学习一种语言。** 青简不会在一个候选项旁边同时塞入英语、日语、西班牙语、德语。保持输入体验干净，比堆砌信息更重要。
 
 - 官网：[qingjian.app](https://qingjian.app)
 - 下载：[qingjian.app/download](https://qingjian.app/download)（macOS、Windows）
