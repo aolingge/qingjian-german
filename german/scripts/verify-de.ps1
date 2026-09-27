@@ -108,10 +108,17 @@ if (-not (Test-Path -LiteralPath $cli)) {
     $rustLog = $env:RUST_LOG
     $ErrorActionPreference = 'Continue'
     $env:RUST_LOG = 'info'
+    $tmp = Join-Path $env:TEMP ('qingjian-verify-cli-{0}.txt' -f $PID)
     try {
-        $cliOut = (& $cli --dict $dict --glossary $qj --language de --limit 1 -- xuexiao 2>&1 | Out-String)
+        # 不用 PowerShell 的 `2>&1`：native 程序写 stderr 会变成 ErrorRecord，
+        # 它落进输出流/错误流的时机不受控（开机自检里曾因此偶发误报「词表加载条数不对」）；
+        # 交给 cmd 重定向到文件，一定能同时拿到 INFO 日志与查询结果。
+        $cmdLine = '"{0}" --dict "{1}" --glossary "{2}" --language de --limit 1 -- xuexiao > "{3}" 2>&1' -f $cli, $dict, $qj, $tmp
+        & $env:ComSpec /c $cmdLine | Out-Null
+        $cliOut = if (Test-Path -LiteralPath $tmp) { [IO.File]::ReadAllText($tmp) } else { '' }
     } finally {
         $ErrorActionPreference = $eap
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
         if ($null -eq $rustLog) { Remove-Item Env:RUST_LOG -ErrorAction SilentlyContinue }
         else { $env:RUST_LOG = $rustLog }
     }

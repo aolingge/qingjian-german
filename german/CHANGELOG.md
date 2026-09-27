@@ -40,6 +40,11 @@
 - **部署验证**：`scripts/pack-glossary.ps1 -Deploy` → 15,510,104 B / sha256 `c869a59e…fa90`，
   `scripts/verify-de.ps1` 全绿（0 条提示）；CLI 实测 `lubiao → 路标 n. der Wegweiser`、
   `tiantou → 甜头 n. der Vorteil, der Nutzen`、`shangbiao → 上标 n. das Superskript`。
+- **修掉自检里的一处偶发误报**：`verify-de.ps1` 第 2b 段原来用 PowerShell 的 `2>&1` 收 `qingjian-cli`
+  的输出，native 程序写 stderr 会变成 ErrorRecord、落进管道的时机不受控，于是「引擎加载成功：
+  glosses=205333」明明在输出里，脚本却偶发报「词表加载条数不对」——开机自检因此误判过一次。
+  现在改成交给 `cmd /c … > 临时文件 2>&1` 再读文件，信息级日志与查询结果一定同时拿到。
+
 
 ## 2026-09-27 —— 第七轮：等级表去掉盲兜底（十项体检 / 每一条都有依据）
 
