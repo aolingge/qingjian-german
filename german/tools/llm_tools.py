@@ -140,15 +140,20 @@ def write_lines(path, lines, header=None):
             f.write(line + "\n")
 
 
-def run_batches(key, batches, build, parse, out_path, workers, max_tokens, note, header=None):
-    """后台跑批：`# batch N` 记录已完成批次，中断后重跑会自动跳过。"""
+def run_batches(key, batches, build, parse, out_path, workers, max_tokens, note, header=None, marker=None):
+    """后台跑批：`# <marker>` 记录已完成批次，中断后重跑会自动跳过。
+
+    marker 缺省是批序号（`# batch N`）；传入 marker(batch) 可以改成按内容记账
+    （cefrword 用它防「补跑时批次序号错位导致整批被跳过」）。
+    """
+    keys = [("batch %d" % i) if marker is None else marker(b) for i, b in enumerate(batches)]
     done = set()
     if os.path.isfile(out_path):
         with open(out_path, encoding="utf-8") as f:
             for line in f:
-                if line.startswith("# batch "):
-                    done.add(int(line.split()[2]))
-    todo = [(i, b) for i, b in enumerate(batches) if i not in done]
+                if line.startswith("# "):
+                    done.add(line[2:].strip())
+    todo = [(i, b) for i, b in enumerate(batches) if keys[i] not in done]
     print("[%s] 共 %d 批，已完成 %d，待跑 %d（%d 并发）" % (note, len(batches), len(done), len(todo), workers), flush=True)
     fresh = not os.path.isfile(out_path) or os.path.getsize(out_path) == 0
     out = open(out_path, "a", encoding="utf-8", newline="\n")
@@ -174,7 +179,7 @@ def run_batches(key, batches, build, parse, out_path, workers, max_tokens, note,
                         print("  批 %d 失败: %s" % (i, err), flush=True)
                 else:
                     lines = parse(i, content)
-                    out.write("# batch %d\n" % i)
+                    out.write("# %s\n" % keys[i])
                     for line in lines:
                         out.write(line + "\n")
                     stats["成功批"] += 1
@@ -558,13 +563,19 @@ for _w in ("jahrhundert jahrtausend jahrzehnt datum kalender kilobyte megabyte g
     FALLBACK_LEVELS[_w] = "A2"
 
 
-def content_words(text):
-    """释义里的德语实词。先去掉括号（英语/拉丁文注释多在里面），再过滤停用词与非德语碎片。"""
+def content_words(text, numeric=False):
+    """释义里的德语实词。先去掉括号（英语/拉丁文注释多在里面），再过滤停用词与非德语碎片。
+
+    numeric=True 时额外把数字/数量前缀剥掉（100-Meter-Hürdenlauf、16-Bit-Architektur、8-Ball），
+    这样这些条目还有机会被复合词/兜底词表定级——只在真能定级时才采信，见 cmd_levels。
+    """
     text = re.sub(r"\([^()]*\)", " ", text)
     text = re.sub(r"\[[^\]]*\]", " ", text)
     out = []
     for tok in re.split(r"[\s,;./()\[\]\"'|]+", text):
         tok = tok.strip(" -–—!?…:")
+        if numeric:
+            tok = re.sub(r"^[0-9]+([.,][0-9]+)*[-–]?", "", tok)
         if len(tok) < 2 or tok[0].isdigit():
             continue
         low = tok.lower()
@@ -576,26 +587,87 @@ def content_words(text):
     return out
 
 
+def has_letters(text):
+    """释义里是否有真正的字母词（用来区分「型号/数字/符号条目」与「有德语词汇的条目」）。"""
+    text = re.sub(r"\([^()]*\)", " ", text)
+    text = re.sub(r"\[[^\]]*\]", " ", text)
+    return bool(re.search(u"[A-Za-z\u00c0-\u024f\u00df]{2,}", text))
+
+
+def resolve_level(words, word_level):
+    """在实词里找等级：① 第一个有等级的词（冠词后的中心词）② 复合词退化 ③ 兜底词表。
+
+    返回 (等级, 来源)；找不到返回 (None, "")。
+    """
+    for t in words:
+        if t in word_level:
+            return word_level[t], "中心词"
+    for t in words:
+        low_t = t.lower()
+        hit = None
+        # 复合词退化：连字符各段（从后往前）→ 再按词尾逐字缩短找最长命中。
+        # 只认真实词表里的形态，命中不了就按 B2 兜底，不猜。
+        for part in reversed(re.split(r"[-‐–]", low_t)):
+            if len(part) >= 4 and part in word_level:
+                hit = word_level[part]
+                break
+        if hit is None and len(low_t) >= 8:
+            for k in range(6, len(low_t) - 3):
+                if low_t[k:] in word_level:
+                    hit = word_level[low_t[k:]]
+                    break
+        if hit:
+            return hit, "复合词退化"
+    for t in words:
+        low_t = t.lower()
+        hit = FALLBACK_LEVELS.get(low_t)
+        if hit is None:
+            for part in re.split(r"[-‐–]", low_t):
+                if part in FALLBACK_LEVELS:
+                    hit = FALLBACK_LEVELS[part]
+                    break
+        if hit:
+            return hit, "兜底词表"
+    return None, ""
+
+
 def cmd_levels(args):
     """用 Goethe 表 + llm-cefr.tsv 给**每条释义**定级（键 = 释义整串小写，运行时精确匹配）。"""
     word_level = dict(load_goethe())
     n_goethe = len(word_level)
-    llm_cefr = os.path.join(HERE, "llm-cefr.tsv")
     n_llm = 0
-    if os.path.isfile(llm_cefr):
-        for line in open(llm_cefr, encoding="utf-8"):
+    for path, tag in ((os.path.join(HERE, "llm-cefr.tsv"), "llm"),
+                      (os.path.join(HERE, "llm-cefrword.tsv"), "word")):
+        if not os.path.isfile(path):
+            continue
+        for line in open(path, encoding="utf-8"):
             if line.startswith("#") or "\t" not in line:
                 continue
             w, lv = (s.strip() for s in line.split("\t", 1))
             lv = lv.upper().replace("B2+", "B2")
             if lv in LEVEL_ORDER and w:
-                word_level.setdefault(w.lower(), lv)
-                n_llm += 1
+                if tag == "llm":
+                    n_llm += 1
+                if w.lower() not in word_level:
+                    word_level[w.lower()] = lv
     rows = read_gloss(final_or_merged())
+    # 条目级定级（cefrgloss）：给「释义里没有任何可定级实词」的型号/数字/符号条目兜底
+    gloss_level = {}
+    gloss_path = os.path.join(HERE, "llm-cefrgloss.tsv")
+    if os.path.isfile(gloss_path):
+        for line in open(gloss_path, encoding="utf-8"):
+            if line.startswith("#") or "\t" not in line:
+                continue
+            t, lv = (s.strip() for s in line.split("\t", 1))
+            lv = lv.upper().replace("B2+", "B2")
+            if t and lv in LEVEL_ORDER:
+                gloss_level[t.lower()] = lv
     per = collections.Counter()
     kinds = collections.Counter()
     out = {}
     miss = []
+    miss_heads = collections.Counter()
+    miss_glosses = collections.Counter()
     for w, g in rows:
         text = (POS_PREFIX.sub("", g) if POS_PREFIX.match(g) else g).strip()
         if not text:
@@ -604,45 +676,31 @@ def cmd_levels(args):
         words = content_words(text)
         # 口径：取释义里**第一个有等级的词**（名词的定冠词后面那个词就是它的中心词），
         # 这样 `der Kreis Huidong (Provinz Sichuan)` 按 Kreis 定级，不会被括号里的英语/拼音带偏。
-        level = next((word_level[t] for t in words if t in word_level), None)
+        # 退化顺序见 resolve_level()：中心词 → 复合词退化 → 兜底词表。
+        level, kind = resolve_level(words, word_level)
+        if level is None and any(c.isdigit() for c in text):
+            # 再试一次「剥掉数字前缀」的实词（100-Meter-Hürdenlauf、16-Bit-Architektur）。
+            # 只有在真能定级时才采信，免得把 A1 兜底变成 B2 兜底。
+            alt = content_words(text, numeric=True)
+            if alt:
+                lv2, kind2 = resolve_level(alt, word_level)
+                if lv2 is not None:
+                    level, kind = lv2, kind2
+                    words = words or alt
+        # 条目级定级只在「释义里确实有德语词」时才采信：纯数字/型号/符号条目（1961、1 (Num)）
+        # 没有可学的德语词汇，直接按 A1，不采信模型给整串编号打的分。
+        if level is None and gloss_level and has_letters(text):
+            lv3 = gloss_level.get(low)
+            if lv3:
+                level, kind = lv3, "条目定级"
         if level is not None:
-            kinds["中心词"] += 1
-        elif words:
-            # 复合词退化：连字符各段（从后往前）→ 再按词尾逐字缩短找最长命中。
-            # 只认真实词表里的形态，命中不了就按 B2 兜底，不猜。
-            for t in words:
-                low_t = t.lower()
-                hit = None
-                for part in reversed(re.split(r"[-‐–]", low_t)):
-                    if len(part) >= 4 and part in word_level:
-                        hit = word_level[part]
-                        break
-                if hit is None and len(low_t) >= 8:
-                    for k in range(6, len(low_t) - 3):
-                        if low_t[k:] in word_level:
-                            hit = word_level[low_t[k:]]
-                            break
-                if hit:
-                    level = hit
-                    kinds["复合词退化"] += 1
-                    break
-        if level is None:
-            # 兜底词表：月份/星期/季节/度量/常见技术词——Goethe 表和 LLM 定级里都没有，但确实是初级词
-            for t in words:
-                low_t = t.lower()
-                hit = FALLBACK_LEVELS.get(low_t)
-                if hit is None:
-                    for part in re.split(r"[-‐–]", low_t):
-                        if part in FALLBACK_LEVELS:
-                            hit = FALLBACK_LEVELS[part]
-                            break
-                if hit:
-                    level = hit
-                    kinds["兜底词表"] += 1
-                    break
-        if level is None:
+            kinds[kind] += 1
+        else:
             level = "A1" if not words else "B2"   # 没有实词（纯数字/符号）按 A1；有实词但没标注按 B2
             miss.append((w, text))
+            miss_glosses[text] += 1
+            if words:
+                miss_heads[words[0]] += 1
         prev = out.get(low)
         if prev is None or LEVEL_ORDER.index(level) < LEVEL_ORDER.index(prev):
             if prev is not None:
@@ -661,12 +719,129 @@ def cmd_levels(args):
     for text in sorted(out, key=lambda t: (LEVEL_ORDER.index(out[t]), t)):
         lines.append("%s\t%s" % (text, out[text]))
     write_lines(LEVELS_OUT, lines)
+    # 兜底中心词清单：交给 `cefrword` 子命令补标注，下一轮 levels 就能吃上
+    miss_path = os.path.join(HERE, "levels", "unknown-heads.tsv")
+    write_lines(miss_path, ["%s\t%d" % (k, v) for k, v in miss_heads.most_common()],
+                header="# llm_tools.py levels 定不了级的中心词（词<TAB>出现次数）"
+                       "——用 `python llm_tools.py cefrword` 补标注后重跑 levels")
+    gloss_miss_path = os.path.join(HERE, "levels", "unknown-glosses.tsv")
+    write_lines(gloss_miss_path, ["%s\t%d" % (k, v) for k, v in miss_glosses.most_common()],
+                header="# llm_tools.py levels 连中心词都没有的条目（释义<TAB>出现次数）"
+                       "——用 `python llm_tools.py cefrgloss` 按条目补定级后重跑 levels")
     total = len(out) + len(miss)
     print("Goethe 词形 %d，LLM 词形 %d，合计 %d" % (n_goethe, n_llm, len(word_level)))
-    print("释义定级 %d / %d（%.1f%%）；未定级 %d" % (len(out), total, 100 * len(out) / max(total, 1), len(miss)))
+    print("释义定级 %d / %d（%.1f%%）；未定级 %d；待补定级中心词 %d 个（→ %s）；待补定级条目 %d 条（→ %s）"
+          % (len(out), total, 100 * len(out) / max(total, 1), len(miss), len(miss_heads), miss_path,
+             len(miss_glosses), gloss_miss_path))
     print("每级：" + "，".join("%s %d" % (l, per[l]) for l in LEVEL_ORDER if per[l]))
+    print("定级来源：" + "，".join("%s %d" % kv for kv in kinds.most_common()))
     print("未定级样例：" + " | ".join("%s→%s" % m for m in miss[:10]))
     print("写出 %s（%d B）" % (LEVELS_OUT, os.path.getsize(LEVELS_OUT)))
+
+
+# --------------------------------------------------------------------------- cefrword
+
+def cmd_cefrword(args):
+    """给 levels 兜底的「中心词」补 CEFR 等级（Goethe 与 llm-cefr.tsv 都没有的词）。
+
+    输入是 levels 子命令写出的 levels\\unknown-heads.tsv；产物 llm-cefrword.tsv 会被
+    下一次 levels 读进去，从而把「有实词但没标注 → B2 兜底」的那部分降到最低。
+    """
+    src = os.path.join(HERE, "levels", "unknown-heads.tsv")
+    if not os.path.isfile(src):
+        raise SystemExit("先跑 `python llm_tools.py levels` 生成 %s" % src)
+    done = set()
+    if os.path.isfile(args.out):
+        for line in open(args.out, encoding="utf-8"):
+            if line.startswith("#") or "\t" not in line:
+                continue
+            done.add(line.split("\t", 1)[0].strip().lower())
+    items = []
+    for line in open(src, encoding="utf-8"):
+        if line.startswith("#") or "\t" not in line:
+            continue
+        w = line.split("\t", 1)[0].strip().lower()
+        if w and w not in done:
+            items.append(w)
+    if args.limit:
+        items = items[:args.limit]
+    print("待补定级中心词 %d 个（已有 %d）；前 15：%s" % (len(items), len(done), " ".join(items[:15])))
+    batches = batched(items, args.batch)
+
+    def build(batch):
+        return [{"role": "system", "content": CEFR_SYSTEM},
+                {"role": "user", "content": "\n".join(batch)}]
+
+    def parse(_i, content):
+        return ["%s\t%s" % (w.lower(), v.upper().replace("B2+", "B2"))
+                for w, v in parse_pairs(content, allow=("A1", "A2", "B1", "B2", "B2+", "C1", "C2"))]
+
+    run_batches(load_key(), batches, build, parse, args.out, args.workers, args.max_tokens, "cefrword",
+                header="# llm_tools.py cefrword：levels 兜底中心词的 CEFR 补标注（%s）" % MODEL,
+                marker=lambda b: "words " + (b[0] if b else ""))
+
+
+# --------------------------------------------------------------------------- cefrgloss
+
+CEFRGLOSS_SYSTEM = (
+    "你是歌德学院德语考试（Goethe-Zertifikat）的词汇分级专家。下面每行是「编号<TAB>一条德语释义」，"
+    "这条释义对应一个中文词条；有些释义里只有数字、型号、单位或符号（1 (Num)、Typ 99、HK MP5）。\n"
+    "请按这条释义的**难度**给 CEFR 等级，输出格式严格为「编号<TAB>等级」，等级只能是 A1 A2 B1 B2 C1 C2：\n"
+    "  A1/A2 = 日常最高频基础（das Haus、1 (Num)）；B1/B2 = 常见但有门槛（der Keilriemen）；\n"
+    "  C1/C2 = 学术、专业、低频、生僻（100-Meter-Hürdenlauf、Röntgenfluoreszenz、besondere Rechtsform）。\n"
+    "型号/数字/符号条目按它指代的词判断难度，实在判断不了给 B2。只输出这些行，不要解释、不要序号以外的文字，"
+    "行数与输入相同，编号原样照抄。"
+)
+
+
+def cmd_cefrgloss(args):
+    """给「释义里没有任何可定级德语词」的条目补 CEFR 等级（按编号回填，模型不必照抄释义）。
+
+    输入是 levels 子命令写出的 levels\\unknown-glosses.tsv；产物 llm-cefrgloss.tsv 会被
+    下一次 levels 读进去，作为最后一级依据（在词级定级之后、盲兜底之前）。
+    """
+    src = os.path.join(HERE, "levels", "unknown-glosses.tsv")
+    if not os.path.isfile(src):
+        raise SystemExit("先跑 `python llm_tools.py levels` 生成 %s" % src)
+    done = set()
+    if os.path.isfile(args.out):
+        for line in open(args.out, encoding="utf-8"):
+            if line.startswith("#") or "\t" not in line:
+                continue
+            done.add(line.split("\t", 1)[0].strip().lower())
+    items = []
+    for line in open(src, encoding="utf-8"):
+        if line.startswith("#") or "\t" not in line:
+            continue
+        t = line.split("\t", 1)[0].strip()
+        if t and t.lower() not in done:
+            items.append(t)
+    if args.limit:
+        items = items[:args.limit]
+    print("待补定级条目 %d 条（已有 %d）；前 5：%s" % (len(items), len(done), " | ".join(items[:5])))
+    batches = batched(items, args.batch)
+
+    def build(batch):
+        body = "\n".join("%d\t%s" % (j + 1, t) for j, t in enumerate(batch))
+        return [{"role": "system", "content": CEFRGLOSS_SYSTEM},
+                {"role": "user", "content": body}]
+
+    def parse(_i, content):
+        out, seen = [], set()
+        for raw in content.splitlines():
+            line = raw.strip().lstrip("-•*> \t`").strip()
+            m = re.match(r"^(\d+)\s*[\t:：.、)）-]\s*([A-Ca-c][12])\b", line)
+            if not m:
+                continue
+            j, lv = int(m.group(1)), m.group(2).upper()
+            if 1 <= j <= len(batches[_i]) and j not in seen:
+                seen.add(j)
+                out.append("%s\t%s" % (batches[_i][j - 1].lower(), lv))
+        return out
+
+    run_batches(load_key(), batches, build, parse, args.out, args.workers, args.max_tokens, "cefrgloss",
+                header="# llm_tools.py cefrgloss：无可定级实词的条目（型号/数字/符号释义）按条目补定级（%s）" % MODEL,
+                marker=lambda b: "gloss " + (b[0][:40] if b else ""))
 
 
 # --------------------------------------------------------------------------- report
@@ -715,10 +890,23 @@ def main():
         if name == "sense":
             p.add_argument("--min-freq", type=int, default=100, help="只看词频 ≥ N 的词")
     p = sub.add_parser("levels")
+    p = sub.add_parser("cefrword")
+    p.add_argument("--out", default=os.path.join(HERE, "llm-cefrword.tsv"))
+    p.add_argument("--batch", type=int, default=50)
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--max-tokens", type=int, default=1500)
+    p.add_argument("--limit", type=int, default=0, help="只跑前 N 个词（小样试跑）")
+    p = sub.add_parser("cefrgloss")
+    p.add_argument("--out", default=os.path.join(HERE, "llm-cefrgloss.tsv"))
+    p.add_argument("--batch", type=int, default=25)
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--max-tokens", type=int, default=2000)
+    p.add_argument("--limit", type=int, default=0, help="只跑前 N 条（小样试跑）")
     p = sub.add_parser("report")
     args = ap.parse_args()
     {"gap": cmd_gap, "articles": cmd_articles, "cefr": cmd_cefr, "audit": cmd_audit,
-     "sense": cmd_sense, "levels": cmd_levels, "report": cmd_report}[args.cmd](args)
+     "sense": cmd_sense, "levels": cmd_levels, "cefrword": cmd_cefrword, "cefrgloss": cmd_cefrgloss,
+     "report": cmd_report}[args.cmd](args)
 
 
 if __name__ == "__main__":

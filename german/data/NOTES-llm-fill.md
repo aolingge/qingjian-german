@@ -153,3 +153,35 @@
   （旧表自动备份成 `levels-de.tsv.bak-yyyyMMdd-HHmmss`），部署从两条命令变一条。
 - **坑（复述）**：`llm_tools.py` 的 `POS_PREFIX` 已扩到 Rust 的全别名集
   （`n|noun|v|verb|adj|adv|int|interj|pron|num|prep|conj|part|phr|phrase|mw|m`），别只写 `n|v|…` 那 12 个短写。
+
+## 第七轮：等级表去掉盲兜底（2026-09-27 12:50）
+
+- **动机**：第六轮定级覆盖率是 100%，但其中 11,647 条只是「没有依据就按 B2（无实词按 A1）兜底」。
+  第七轮把「没有依据」这件事本身消掉，让每一条都能说出等级是从哪来的。
+- **新增两条链路**（`tools/llm_tools.py`）：
+  - `python tools/llm_tools.py cefrword --workers 8`：读 `levels/unknown-heads.tsv`（中心词定级失败的复现式
+    `gegessen`、分词 `entschlossen`、复合词退化也没中的），批 50，输出 `data/llm-cefrword.tsv`
+    —— **413 词 / 9 批 / 0 失败**。
+  - `python tools/llm_tools.py cefrgloss --workers 8`：读 `levels/unknown-glosses.tsv`（整条释义都没有可定级实词），
+    批 25，编号回填（模型只回 «序号 + 等级»，不必照抄释义），输出 `data/llm-cefrgloss.tsv`
+    —— **10,623 条 / 425 批 / 0 失败**。
+  - `run_batches(..., marker=...)` 改成**按内容记账**：重跑时新批的 0 不会被当成「旧批已完成」而跳过。
+- **定级链**：中心词 → 复合词退化 → **条目定级**（`llm-cefrgloss.tsv`，键 = 释义小写）→ 兜底。
+  条目定级只在 `has_letters(释义)` 为真时采信（释义里确实有德语字母词）；纯数字/型号/符号条目
+  （`1 (Num)`、`1961`、`〡〢〣`）一律 **A1**，不采信模型给整串编号打的 B2。
+- **产物**：`data/levels-de.tsv` **170,619 键 / 4,577,561 B**（A1 28,201 / A2 16,175 / B1 29,174 /
+  B2 37,790 / C1 22,392 / C2 36,887）；定级来源：中心词 193,971、条目定级 930、复合词退化 374；
+  未定级 10,058 条全是纯数字/符号 → A1。**盲兜底 0 条**。
+- **体检脚本升级为十项**：`tools/audit_final.py` 加了全角标点（真中文标点与正常的弯引号 `People’s` 分开算）、
+  变音字母写成 `ae/oe/ue`、格式（首尾空白/连续空格/以逗号结尾）、重复行、等级表自检（重复键/非法等级/CJK 键）、
+  借词大小写对照。复检：中文全角标点 0、变音 0、格式 0、重复 0、等级表 0 重复 0 非法、
+  冠词与 `german-nouns` 一致 **20,103 / 20,117 = 99.93%**。
+- **教训（写进 README 已知限制）**：德语本土名词的小写**无法做自动判定** —— 形容词跟在冠词后本来就小写
+  （`ein kleiner Teil`、`die drei Punkte`），而 `german-nouns` 把 `Klein`/`Für`/`Alt` 这类专名也收成名词；
+  「小写词 ∈ nouns.csv」「表内别处写作大写」两版规则都产生成百上千条假阳性，最后只保留「冠词后的英语借词」这一条
+  确定性对照（0 处命中），此前发现的 `U盘 → der Memory stick` 已改成 `der Memory Stick`。
+- **数据修正 2 条**（`data/fixes.tsv` 44 → 46）：`大千世界无奇不有` 释义里的中文全角逗号改半角；
+  `U盘 → n. der Memory Stick`。`python tools/apply_fixes.py --apply` → `glossary-de-final.tsv` 205,333 行 /
+  7,398,080 B（旧版备份 `.bak7`），`apply-report.txt` 55,288 条。
+  `scripts/pack-glossary.ps1 -Deploy` → `dist/glossary-de.qj` 15,490,632 B / sha256 `fa3e0555…41EC`，部署后
+  `scripts/verify-de.ps1` 全绿（0 条提示）。

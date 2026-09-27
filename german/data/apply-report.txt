@@ -77025,6 +77025,9 @@
     新: n. die Rangliste; die Bestenliste; die Billboard-Charts
 [常用义] 龙骨	旧: n. das Fossil
     新: n. der Kiel; das Fossil
+[手工覆盖] U盘
+    旧: n. der Memory stick
+    新: n. der Memory Stick
 [手工覆盖] 凉凉送
     旧: v. kühl senden
     新: v. (Netzjargon) jdn. links liegen lassen, ignorieren
@@ -77049,6 +77052,9 @@
 [手工覆盖] 复句
     旧: n. der Satzgefüge
     新: n. das Satzgefüge
+[手工覆盖] 大千世界无奇不有
+    旧: Es gibt nichts auf der Welt，was es nicht gibt.
+    新: Es gibt nichts auf der Welt, was es nicht gibt.
 [手工覆盖] 天灵盖
     旧: n. der Schädeldach
     新: n. das Schädeldach
