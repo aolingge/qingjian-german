@@ -46,6 +46,9 @@
 ### A. 已经装好青简（只换词表，最快）
 
 ```powershell
+# 释义表与等级表都在 Release 里：
+#   https://github.com/aolingge/qingjian-german/releases/latest
+#   glossary-de.qj（205,333 条，15,490,632 B）+ levels-de.tsv（170,620 条，4,577,613 B）
 copy dist\glossary-de.qj "D:\application\Qingjian\data\generated\"   # 换成你的安装目录
 # %APPDATA%\Qingjian\config.toml 里改成：learning_language = "de"
 Get-Process qingjian-server | Stop-Process   # 输入法宿主会自动把它拉起来
