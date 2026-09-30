@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
 **一次只学习一种语言。** 青简不会在一个候选项旁边同时塞入英语、日语、西班牙语、德语。保持输入体验干净，比堆砌信息更重要。
 
 - 官网：[qingjian.app](https://qingjian.app)
-- 下载：[qingjian.app/download](https://qingjian.app/download)（macOS、Windows）
+- 下载：[qingjian.app/download](https://qingjian.app/download)（macOS、Windows）；如果官网暂时不可用，也可以直接使用本仓库 [最新 GitHub Release](https://github.com/aolingge/qingjian-german/releases/latest) 中的词库文件
 - 文档：[qingjian.app/docs](https://qingjian.app/docs)（安装、按键、设置、数据与隐私）
 - 反馈：[GitHub Issues](https://github.com/qingjian-team/qingjian/issues/new/choose)
 - QQ 群：[902314603](https://qm.qq.com/q/jBvn2gGTxm)（青简输入法用户内测体验交流群）
