@@ -16,6 +16,9 @@ pub enum Language {
 
     /// 西班牙语。
     Spanish,
+
+    /// 德语。
+    German,
 }
 
 impl Language {
@@ -26,6 +29,7 @@ impl Language {
             Self::English => "en",
             Self::Japanese => "ja",
             Self::Spanish => "es",
+            Self::German => "de",
         }
     }
 }
@@ -43,6 +47,7 @@ impl FromStr for Language {
             "en" | "english" => Ok(Self::English),
             "ja" | "jp" | "japanese" => Ok(Self::Japanese),
             "es" | "es-es" | "spanish" => Ok(Self::Spanish),
+            "de" | "de-de" | "german" | "deutsch" => Ok(Self::German),
             other => Err(UnknownLanguage(other.to_owned())),
         }
     }
@@ -59,17 +64,21 @@ mod tests {
         assert_eq!(" es-ES ".parse::<Language>().unwrap(), Language::Spanish);
         assert_eq!("Spanish".parse::<Language>().unwrap(), Language::Spanish);
         assert_eq!("zh-cn".parse::<Language>().unwrap(), Language::Chinese);
+        assert_eq!("de".parse::<Language>().unwrap(), Language::German);
+        assert_eq!(" DE-DE ".parse::<Language>().unwrap(), Language::German);
+        assert_eq!("Deutsch".parse::<Language>().unwrap(), Language::German);
     }
 
     #[test]
     fn rejects_unknown_codes() {
-        let error = "de".parse::<Language>().unwrap_err();
-        assert_eq!(error.0, "de");
+        let error = "fr".parse::<Language>().unwrap_err();
+        assert_eq!(error.0, "fr");
     }
 
     #[test]
     fn codes_are_iso_639_1() {
         assert_eq!(Language::Spanish.code(), "es");
         assert_eq!(Language::Japanese.code(), "ja");
+        assert_eq!(Language::German.code(), "de");
     }
 }

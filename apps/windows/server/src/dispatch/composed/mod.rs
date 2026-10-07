@@ -2,7 +2,7 @@
 
 mod state;
 
-use qingjian_core::{Candidate, CandidateLayout, CandidateList, CloudWord, Query};
+use qingjian_core::{Candidate, CandidateLayout, CandidateList, CloudWord, Language, Query};
 use qingjian_platform::protocol::{Frame, PROTOCOL_VERSION, PreeditKind, PreeditSegment};
 
 pub(super) use self::state::{Composed, TypedKeys};
@@ -172,7 +172,11 @@ impl Router {
         self.raw_frame()
     }
 
-    /// 协议比 Server 老的 DLL 不认识 `AuxCode` 段，收到会整条消息解析失败；给它的码段降级成普通拼音段。
+    /// 协议比 Server 老的 DLL 不认识 `AuxCode` 段 / 新加的 [`Language`] 变体，收到会整条消息解析失败
+    /// （帧里 `Candidate::translation` 的语言序列化成 `"German"`，老 DLL 的枚举只有中英日西，报
+    /// `unknown variant \`German\``，整条消息废掉、按键直接放行），所以按老协议降级两处：
+    /// 码段降级成普通拼音段；译文里的语言记号标成它认识的英语——**只是记号**，译文文本本身照旧是德语，
+    /// DLL 是纯渲染端、不读这个字段（候选窗由 Server 自绘）。
     fn downgrade_for_old_dll(&self, frame: &mut Frame) {
         if self.focused_dll_protocol() >= PROTOCOL_VERSION {
             return;
@@ -180,6 +184,14 @@ impl Router {
         for segment in &mut frame.preedit {
             if segment.kind == PreeditKind::AuxCode {
                 segment.kind = PreeditKind::Typed;
+            }
+        }
+        for candidate in &mut frame.candidates.items {
+            let Some(translation) = candidate.translation.as_mut() else {
+                continue;
+            };
+            if translation.language == Language::German {
+                translation.language = Language::English;
             }
         }
     }

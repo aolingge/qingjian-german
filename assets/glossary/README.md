@@ -51,6 +51,12 @@
 
 欢迎报错译：有反馈之后可以再用 LLM 在现有表上精修一轮。
 
+## 德语（`german/dist/glossary-de.qj`）
+
+不在本目录，是 `german` 分支单独做的一张表：HanDeDict（CC BY-SA 3.0）+ german-nouns（CC BY-SA 4.0）
+打底，缺的词用 DeepSeek 补，205,333 条、词库覆盖 100%，打好的包与生成工具都在 `german/`。
+数据来源与许可见 [`german/README.md`](../../german/README.md) 与 `german/NOTICE.md`。
+
 ## 英→中（`glossary-zh.tsv`）
 
 英文候选（中英混输、英文模式）右侧显示的中文释义。词按 wordfreq 词频 ≥ 2500 加技术词表全部，

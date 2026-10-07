@@ -1,4 +1,24 @@
-# 青简 Qingjian
+<p align="center">
+  <img src="https://raw.githubusercontent.com/aolingge/aolingge/main/assets/language-cover.png" alt="语言学习主题装饰插画" width="100%" />
+</p>
+
+# 青简 Qingjian · 德语扩展
+
+> **本仓库是 [qingjian-team/qingjian](https://github.com/qingjian-team/qingjian) 的 fork，`german` 分支加了德语支持。**
+> 德语支持的全部成果 —— 205,333 条汉德释义表（词库 92,825 词全部有德语，覆盖率 100%）、171,330 条词汇等级表、生成工具、
+> 构建与部署文档 —— 都在 [`german/`](german/README.md)。Release 里有打包好的
+> [`glossary-de.qj`](https://github.com/aolingge/qingjian-german/releases/latest/download/glossary-de.qj) 与
+> [`levels-de.tsv`](https://github.com/aolingge/qingjian-german/releases/latest/download/levels-de.tsv)，下载即用
+> （当前 [v0.1.10-dev-german](https://github.com/aolingge/qingjian-german/releases/tag/v0.1.10-dev-german)）。
+
+## 德语扩展速览
+
+| 项目 | 说明 |
+| --- | --- |
+| **仓库定位** | 这是 qingjian-team/qingjian 的 fork；本分支的贡献集中在德语学习支持，上游输入法保留原作者归属。 |
+| **扩展内容** | 汉德释义表、词汇等级表、数据生成工具，以及德语分支的构建、部署和验证文档。 |
+| **使用方式** | 先阅读 german/ 中的扩展说明，再按发布页说明下载词库文件或从源码构建。 |
+| **直接开始** | [德语扩展文档](german/README.md) · [词库发布](https://github.com/aolingge/qingjian-german/releases) · [上游项目](https://github.com/qingjian-team/qingjian) |
 
 > 输入的不只是文字。
 
@@ -24,10 +44,10 @@ https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
 
 候选词仍然是输入的主体，翻译只作为较小、较浅的辅助信息存在。
 
-**一次只学习一种语言。** 青简不会在一个候选项旁边同时塞入英语、日语、韩语、德语。保持输入体验干净，比堆砌信息更重要。
+**一次只学习一种语言。** 青简不会在一个候选项旁边同时塞入英语、日语、西班牙语、德语。保持输入体验干净，比堆砌信息更重要。
 
 - 官网：[qingjian.app](https://qingjian.app)
-- 下载：[qingjian.app/download](https://qingjian.app/download)（macOS、Windows）
+- 下载：[qingjian.app/download](https://qingjian.app/download)（macOS、Windows）；如果官网暂时不可用，也可以直接使用本仓库 [最新 GitHub Release](https://github.com/aolingge/qingjian-german/releases/latest) 中的词库文件
 - 文档：[qingjian.app/docs](https://qingjian.app/docs)（安装、按键、设置、数据与隐私）
 - 反馈：[GitHub Issues](https://github.com/qingjian-team/qingjian/issues/new/choose)
 - QQ 群：[902314603](https://qm.qq.com/q/jBvn2gGTxm)（青简输入法用户内测体验交流群）

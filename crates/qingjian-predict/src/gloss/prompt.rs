@@ -15,6 +15,9 @@ const MAX_JAPANESE_CHARS: usize = 16;
 /// 单条西班牙文译词最多几个字符：西语词比英文长（`restablecimiento`），放宽一点。
 const MAX_SPANISH_CHARS: usize = 32;
 
+/// 单条德文译词最多几个字符：德语复合词也长（`Jahrhundertflut`），比英文放宽。
+const MAX_GERMAN_CHARS: usize = 40;
+
 pub const ENGLISH_SYSTEM_PROMPT: &str = "你是汉英词典编纂者。给每个中文词写最简短的英文对应词，供拼音输入法在候选词旁边一行显示，所以只要词、不要解释。\n\
 规则：\n\
 - pos：这个中文词最主要的词性，只能是 n. v. adj. adv. pron. prep. conj. num. m. part. int. phr. 之一（m. 量词，part. 助词，phr. 短语或成语）。\n\
@@ -39,11 +42,21 @@ pub const SPANISH_SYSTEM_PROMPT: &str = "你是汉西词典编纂者。给每个
 输出严格的 JSON：{\"items\":[{\"w\":\"开发\",\"pos\":\"v.\",\"senses\":[{\"t\":\"desarrollar\"},{\"t\":\"explotar\"}]}]}。\n\
 items 与输入的词一一对应、顺序一致、每个词恰好一项，w 必须原样照抄输入的词。";
 
+pub const GERMAN_SYSTEM_PROMPT: &str = "你是汉德词典编纂者。给每个中文词写最简短的德文对应词，供拼音输入法在候选词旁边一行显示，所以只要词、不要解释。\n\
+规则：\n\
+- pos：这个中文词最主要的词性，只能是 n. v. adj. adv. pron. prep. conj. num. m. part. int. phr. 之一（m. 量词，part. 助词，phr. 短语或成语）。\n\
+- senses：1 到 2 条最贴切的德文对应词，按常用度排；每条不超过 3 个德文单词；名词首字母大写、一般用单数，动词用不定式；不要括号、不要解释、不要例句。\n\
+- 保留德语变音字母和 ß（ä ö ü Ä Ö Ü ß），不要改写成 ae/oe/ue/ss。\n\
+- 人名地名等专名照译；多义词只取最常用的义项；网络用语、方言也要给最接近的说法；没有把握也要给最可能的答案，不要留空。\n\
+输出严格的 JSON：{\"items\":[{\"w\":\"开发\",\"pos\":\"v.\",\"senses\":[{\"t\":\"entwickeln\"},{\"t\":\"erschließen\"}]}]}。\n\
+items 与输入的词一一对应、顺序一致、每个词恰好一项，w 必须原样照抄输入的词。";
+
 /// 学习语言对应的系统提示；中文没有（不会请求）。
 pub fn system_prompt(language: Language) -> &'static str {
     match language {
         Language::Japanese => JAPANESE_SYSTEM_PROMPT,
         Language::Spanish => SPANISH_SYSTEM_PROMPT,
+        Language::German => GERMAN_SYSTEM_PROMPT,
         Language::English | Language::Chinese => ENGLISH_SYSTEM_PROMPT,
     }
 }
@@ -148,15 +161,29 @@ fn clean_text(raw: &str, language: Language) -> Option<String> {
                 && text.split_whitespace().count() <= 4
                 && text.chars().all(is_spanish_char)
         }
+        Language::German => {
+            text.chars().count() <= MAX_GERMAN_CHARS
+                && text.split_whitespace().count() <= 4
+                && !text.contains(['(', '（'])
+                && text.chars().all(is_german_char)
+        }
         Language::English | Language::Chinese => {
             text.len() <= MAX_ENGLISH_BYTES
                 && text.split_whitespace().count() <= 4
-                && text
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '\'' | '.' | '/'))
+                && text.chars().all(is_english_char)
         }
     };
     ok.then(|| text.to_owned())
+}
+
+/// 英文译词认得的字符：纯 ASCII 字母数字加常见的连接符。
+fn is_english_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '\'' | '.' | '/')
+}
+
+/// 德文译词认得的字符：ASCII 字母数字加德语变音字母和 ß（大写 ẞ 在 0x1E9E）。
+fn is_german_char(c: char) -> bool {
+    is_english_char(c) || matches!(c, 'ä' | 'ö' | 'ü' | 'Ä' | 'Ö' | 'Ü' | 'ß' | 'ẞ')
 }
 
 /// 西班牙文译词认得的字符：ASCII 字母数字加西语用的拉丁扩展字母（á é í ó ú ü ñ 等）。
@@ -243,5 +270,48 @@ mod tests {
         assert_eq!(clean_text("开发", Language::Spanish), None);
         assert_eq!(clean_text("разработка", Language::Spanish), None);
         assert!(system_prompt(Language::Spanish).contains("西班牙文"));
+    }
+
+    #[test]
+    fn german_keeps_umlauts_and_eszett() {
+        let words = vec!["椅子".to_owned(), "水".to_owned()];
+        let content = r#"{"items":[
+            {"w":"椅子","pos":"n.","senses":[{"t":"Stuhl"},{"t":"Sessel (mit Armlehnen)"},{"t":"Sitzgelegenheit für eine Person"}]},
+            {"w":"水","pos":"n.","senses":[{"t":"Wasser"},{"t":"Gewässer"}]}
+        ]}"#;
+        let filled = parse_reply(content, Language::German, &words);
+        assert_eq!(filled.len(), 2);
+        assert_eq!(filled[0].translation.language, Language::German);
+        // 带括号的释义丢掉，纯词条的留下（最多两条）。
+        assert_eq!(
+            filled[0]
+                .translation
+                .senses()
+                .iter()
+                .map(|sense| sense.text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Stuhl", "Sitzgelegenheit für eine Person"]
+        );
+        assert!(filled[1]
+            .translation
+            .senses()
+            .iter()
+            .any(|sense| sense.text == "Gewässer"));
+        assert_eq!(
+            clean_text("Flüsse.", Language::German).as_deref(),
+            Some("Flüsse")
+        );
+        assert_eq!(
+            clean_text("Überraschung", Language::German).as_deref(),
+            Some("Überraschung")
+        );
+        assert_eq!(
+            clean_text("Straße", Language::German).as_deref(),
+            Some("Straße")
+        );
+        assert_eq!(clean_text("开发", Language::German), None);
+        assert_eq!(clean_text("разработка", Language::German), None);
+        assert!(system_prompt(Language::German).contains("德文"));
+        assert_eq!(system_prompt(Language::German), GERMAN_SYSTEM_PROMPT);
     }
 }

@@ -1,0 +1,4 @@
+# 青简个人释义表（de）：释义兜底从云端写来的，格式同随包释义表，可手改。词<TAB>[词性. ]译词[|读音]
+# 个人表叠在随包表上面：同一个词以这里为准（layered_translator.rs:40-44）。
+# 示例（手改）：便宜 在 HanDeDict 里的第一义项是 geeignet（合适的），德语里更常用 billig。
+便宜	adj. billig; preiswert; günstig

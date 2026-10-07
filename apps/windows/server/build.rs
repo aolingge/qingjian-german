@@ -32,8 +32,13 @@ fn main() {
 #[cfg(windows)]
 fn embed_icon() {
     const ICON: &str = "../tsf/resources/qingjian.ico";
+    // build.rs 的工作目录不保证是 crate 根，相对路径会找不到图标（os error 3）；用 CARGO_MANIFEST_DIR 拼绝对路径。
+    let icon = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(ICON);
     println!("cargo:rerun-if-changed={ICON}");
-    if let Err(error) = winresource::WindowsResource::new().set_icon(ICON).compile() {
+    if let Err(error) = winresource::WindowsResource::new()
+        .set_icon(icon.to_string_lossy().as_ref())
+        .compile()
+    {
         println!("cargo:warning=嵌入 Server 图标失败: {error}");
     }
 }

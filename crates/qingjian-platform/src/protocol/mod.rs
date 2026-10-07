@@ -22,7 +22,11 @@ mod session;
 /// **加枚举变体不在「仍能对话」之列**：`qingjian_core::Candidate` 是线上格式的一部分（见本模块文档），
 /// 给它加一个 `kind` 变体，老 DLL 解不出来会整条帧失败、按键直接放行——测试时看到的「输入法突然只出英文」
 /// 就是这么来的（`unknown variant `Code``）。加变体必须同时 +1 并重装 DLL，否则连警告都不会有。
-pub const PROTOCOL_VERSION: u32 = 7;
+///
+/// v8：`qingjian_core::Language` 加了 `German`（学习语言德语）。老 DLL 的枚举只有中英日西，帧里带
+/// `"German"` 时整条消息解析失败、按键全放行，所以 Server 侧 `downgrade_for_old_dll` 对老 DLL 把
+/// 译文里的语言记号改写成英语（文本照旧），保住「不重装 DLL 也能打字」。
+pub const PROTOCOL_VERSION: u32 = 8;
 
 /// 从哪个协议版本起 DLL 会在 `OpenSession` 后阻塞读一条 [`ServerMessage::SessionOpened`]。
 /// 门槛是固定值而不是当前版本：以后版本再升，没重启的应用里那些旧 DLL 仍在等这条回包，
