@@ -2,15 +2,18 @@
 
 > 已发布到 GitHub：**https://github.com/aolingge/qingjian-german**（上游的 fork，默认分支 `german`）。
 > 仓库里是同一份成果（`german/` 目录）；打包好的释义表在
-> [Release v0.1.8-dev-german](https://github.com/aolingge/qingjian-german/releases/tag/v0.1.8-dev-german)
-> （历史版本 v0.1.5 / v0.1.6 / v0.1.7-dev-german 也在）。
+> [Release v0.1.10-dev-german](https://github.com/aolingge/qingjian-german/releases/tag/v0.1.10-dev-german)
+> （仅包含 `glossary-de.qj`、`glossary-de.qj.sha256`、`levels-de.tsv`，不含 Server、设置程序或安装包）。
 
 本目录是给《青简》Windows 版加 **德语（de）** 学习语言的本地构建/部署工具链。
-安装目录：`D:\application\Qingjian`（原版 0.1.4，官方没有德语，官方更新通道也没有新版本）。
+首次从源码构建，请先看 [README 的通用 Windows x64 构建步骤](../README.md#b-从源码构建)。
+下文保留原构建机器的工程记录：安装路径、SDK 版本和包装脚本参数都是该机器的示例，
+不代表读者机器的配置或当前上游版本。部署脚本可能覆盖安装文件、重启 Server 或调整更新任务，运行前应逐项检查。
+记录中的安装目录为 `D:\application\Qingjian`，当时安装的是上游 0.1.4。
 
 ## 一、源码补丁（相对上游）
 
-上游 checkout：`C:\Users\aolin\AppData\Local\Temp\codex-qingjian-source-20260926`
+上游 checkout：`<上游源码目录>`
 （`https://github.com/qingjian-team/qingjian.git`，HEAD `40e3e550425466e6ba9c0a14de3a77ed04862799`）
 
 | 文件 | 改动 |
