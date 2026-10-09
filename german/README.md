@@ -38,47 +38,69 @@
 - 统计页有 A1 / A2 / B1 / B2 / C1 / C2 生词分级（**171,330 条释义**能定级，A1 28,309 / A2 16,276 / B1 29,479 / B2 38,117 / C1 22,433 / C2 36,716（0 条盲兜底））
 - 常用义排在前面：`权利` 是 `das Recht; der Anspruch; die Anwartschaft`（原来只有生僻的 `die Anwartschaft`），
   `便宜` 是 `billig; preiswert; günstig`（原来只有 `geeignet`）——第五轮用英语释义表当第二意见校正了 14,422 条
-- 遇到词表里没有、或译得不好的词，**不用重打包**：`tools\add_word.py` 直接写个人释义表
-  （`python tools\add_word.py 森饰 甜头 --write --reload`），个人表优先于随包表
+- 遇到词表里没有、或译得不好的词，**不用重打包**：`german\tools\add_word.py` 直接写个人释义表
+  （在仓库根目录运行 `python german\tools\add_word.py 森饰 甜头 --write --reload`），个人表优先于随包表
 - **不用换 DLL**：安装自带的旧 TSF DLL 不认识 `German` 枚举，Server 侧按协议版本自动降级（协议 7→8），
   旧 DLL 收到的是「英语」标签 + 德语正文，因此不会丢键、不会打不出汉字
 - 全离线：释义表是 mmap 的 `.qj` 容器，启动近零耗时；个人释义表 `user-glossary-de.tsv` 可覆盖任意单条
 
 ## 快速开始
 
-### A. 已经装好青简（只换词表，最快）
+以下源码命令默认从仓库根目录执行；「补词流水线」另有工作目录说明。
+
+### A. 已装好支持德语的青简（更新词表）
+
+必须先有支持德语的 `qingjian-settings.exe` 和 `qingjian-server.exe`；上游正式版仅替换词表不会增加「德语」选项。
+当前 [Release v0.1.10-dev-german](https://github.com/aolingge/qingjian-german/releases/tag/v0.1.10-dev-german)
+只提供 `glossary-de.qj`、`glossary-de.qj.sha256` 和 `levels-de.tsv`，**不包含程序二进制或安装包**。
+首次安装请先按 B 构建，并阅读构建记录中的部署步骤。
+
+下载上述三个文件到同一个目录后，在该目录核对释义表校验值：
 
 ```powershell
-# 释义表与等级表都在 Release 里：
-#   https://github.com/aolingge/qingjian-german/releases/latest
-#   glossary-de.qj（205,333 条，15,510,104 B）+ levels-de.tsv（171,330 条，4,608,660 B）
-copy dist\glossary-de.qj "D:\application\Qingjian\data\generated\"   # 换成你的安装目录
-# %APPDATA%\Qingjian\config.toml 里改成：learning_language = "de"
-Get-Process qingjian-server | Stop-Process   # 输入法宿主会自动把它拉起来
+$expected = ((Get-Content -LiteralPath .\glossary-de.qj.sha256 -Raw).Trim() -split '\s+')[0]
+$actual = (Get-FileHash -LiteralPath .\glossary-de.qj -Algorithm SHA256).Hash
+if ($actual -ne $expected) { throw 'glossary-de.qj 校验失败，请重新下载' }
 ```
 
-可选：`data\levels-de.tsv` → `<安装目录>\assets\levels\`（生词分级）；
-`data\user-glossary-de.tsv` → `%APPDATA%\Qingjian\`（个人释义表，优先于随包表，改单条释义就改它）。
+确认校验通过后，按[部署记录](docs/build-and-deploy.md)处理正在占用词表的 Server，
+把下载的 `glossary-de.qj` 放到 `<安装目录>\data\generated\`，
+可选的 `levels-de.tsv` 放到 `<安装目录>\assets\levels\`（生词分级）；
+在 `%APPDATA%\Qingjian\config.toml` 中设置 `learning_language = "de"`。
+源码中的文件对应 `german\dist\glossary-de.qj` 和 `german\data\levels-de.tsv`。
 
-> 注意：设置页能出现「德语」，前提是 `qingjian-settings.exe` / `qingjian-server.exe` 是**带德语支持**的构建
-> （上游正式版没有）。二进制不在仓库里 —— 用 Release 里的成品，或按 `docs/build-and-deploy.md` 自己编。
+个人释义表样例是仓库中的 `german\data\user-glossary-de.tsv`，并非 Release 资产。
+可放到 `%APPDATA%\Qingjian\`，但不要覆盖自己已有的个人表；个人表优先于随包表。
 
 ### B. 从源码构建
+
+Windows x64 需要 Rust MSVC 工具链、Visual Studio C++ Build Tools 和 Windows SDK；
+在 **Developer PowerShell for VS 2022** 中执行。仓库 `.cargo/config.toml` 保留了原构建机器的链接器路径，
+下面用 Cargo `--config` 临时覆盖为开发者终端中的 `link.exe`，不修改仓库配置：
 
 ```powershell
 git clone --branch german https://github.com/aolingge/qingjian-german.git
 cd qingjian-german
-cargo build --release -p qingjian-windows-server -p qingjian-windows-settings
+$env:QINGJIAN_UIACCESS = '0' # 本地未签名测试构建；避免默认 uiAccess=true 导致启动错误 740
+cargo --config "target.x86_64-pc-windows-msvc.linker='link.exe'" build --release --target x86_64-pc-windows-msvc -p qingjian-windows-server -p qingjian-windows-settings
 ```
 
+输出在 `target\x86_64-pc-windows-msvc\release\`；这一步只构建 Server 与设置程序，未安装或注册输入法。
+上面的未签名测试构建关闭了 `uiAccess`，在 UWP 宿主中候选窗口可能被遮挡；需要 `uiAccess` 的正式部署需另行处理签名和受信任安装路径。
 本机没有 Windows SDK 时的链接配置、x86 TSF DLL 的交叉链接、`mt.exe` 与图标等坑，全部记在
-[`docs/build-and-deploy.md`](docs/build-and-deploy.md)（第二、三节）；`scripts/` 下是可直接复用的包装脚本。
+[`docs/build-and-deploy.md`](docs/build-and-deploy.md)（第二、三节）。`german/scripts/` 下的包装脚本保留原机器路径，
+使用前需按自己的源码、安装目录和 SDK 路径调整，不能直接当作通用安装器运行。
 
 ### C. 验证装好了没
 
 ```powershell
-scripts\verify-de.ps1                     # 一键体检：二进制、词表、配置、Server、候选帧
+$installPath = Read-Host '输入青简安装目录'
+pwsh -NoProfile -File .\german\scripts\verify-de.ps1 -Install $installPath -Tools "$PWD\german\scripts" -Kit "$PWD\german\dist\qingjian-de-kit"
 ```
+
+该命令检查二进制、词表、配置、Server 和候选帧，需要 PowerShell 7；仅检查已有安装，不执行安装或进程重启。
+仓库未附带 `qingjian-de-kit` 二进制套件，缺少它时会跳过套件 CLI 检查，并提示不能核对二进制哈希；
+不要把含跳过项的结果当作完整验证。以下 CLI 输出是历史示例，不是本次下载后的实测结果：
 
 ```
 $ qingjian-cli.exe --dict dict.qj --glossary glossary-de.qj --language de --limit 3 -- nihao
@@ -89,8 +111,9 @@ $ qingjian-cli.exe --dict dict.qj --glossary glossary-de.qj --language de --limi
 parse 71µs · lookup 52µs · rank 6.30ms · translate 24µs (43/44 hit) · total 6.45ms
 ```
 
-`scripts\probe-dll.ps1 -Keys xin -Expect Herz -Protocol 7` 用假 DLL 走一遍协议，确认**装好的旧 DLL**
-也能拿到 `"language":"English", "text":"das Herz"` 这种降级帧。
+从仓库根目录运行 `pwsh -NoProfile -File .\german\scripts\probe-dll.ps1 -Keys xin -Expect Herz -Protocol 7`
+会模拟旧 DLL 客户端请求，检查 Server 能否返回 `"language":"English", "text":"das Herz"` 这种降级帧。
+它不加载真实 DLL，也不能代替在目标应用中的真机输入验证。
 
 ## 数据从哪来
 
@@ -121,6 +144,9 @@ parse 71µs · lookup 52µs · rank 6.30ms · translate 24µs (43/44 hit) · tot
 | `data/sources/` | — | HanDeDict、german-nouns、Goethe 5,000 原始数据 | 各自见 `NOTICE.md` |
 
 ### 补词流水线
+
+以下历史流水线命令以 `german/` 为工作目录；从仓库根目录先执行 `Set-Location .\german`。
+其中 LLM 步骤会调用外部服务，`--write`、`--reload` 与 `-Deploy` 会写入数据或影响本机安装；按需选择，不要整段直接执行。
 
 ```powershell
 python tools\gap_in_dict.py       # 1. 算缺口：词库 dict.tsv 减德语表 → 48,210 个词没译文
