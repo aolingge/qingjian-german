@@ -5,7 +5,7 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [german]
   pull_request:
 
 permissions:
@@ -86,6 +86,20 @@ jobs:
         with:
           persist-credentials: false
 
+      # The repository config contains this machine's local SDK/linker paths.
+      # Hosted runners must use the MSVC environment they provide instead.
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: amd64
+
+      - name: Ignore machine-only Cargo config
+        shell: pwsh
+        run: |
+          $config = Join-Path $env:GITHUB_WORKSPACE '.cargo/config.toml'
+          if (Test-Path -LiteralPath $config) {
+            Move-Item -LiteralPath $config -Destination "$config.local" -Force
+          }
+
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
           toolchain: 1.96.0
@@ -99,6 +113,12 @@ jobs:
 
       - name: Test (Server, TSF DLL, Settings)
         run: cargo test -p qingjian-windows-server -p qingjian-windows-tsf -p qingjian-windows-settings --locked
+
+      # Reconfigure the hosted toolchain for the 32-bit target while keeping
+      # the amd64 host tools available for Cargo build scripts.
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: amd64_x86
 
       # 安装包另带一份 32 位 DLL（企业微信 / WPS 这类 32 位应用只能加载它）
       - name: Check (TSF DLL, 32-bit)

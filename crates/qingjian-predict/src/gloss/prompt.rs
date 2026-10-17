@@ -292,11 +292,13 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["Stuhl", "Sitzgelegenheit für eine Person"]
         );
-        assert!(filled[1]
-            .translation
-            .senses()
-            .iter()
-            .any(|sense| sense.text == "Gewässer"));
+        assert!(
+            filled[1]
+                .translation
+                .senses()
+                .iter()
+                .any(|sense| sense.text == "Gewässer")
+        );
         assert_eq!(
             clean_text("Flüsse.", Language::German).as_deref(),
             Some("Flüsse")
