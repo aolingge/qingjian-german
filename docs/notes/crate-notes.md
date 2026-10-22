@@ -100,6 +100,8 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 
 ## crates/qingjian-neural
 
+模型运行库仍使用发布版 candle-core 0.11.0；根 `[patch.crates-io]` 临时指向 `vendor/candle-core`，仅将其 ZIP 依赖升级到 9.0.5 并适配文件名读取接口，修复 RUSTSEC-2026-0367/0368/0369。来源、回归测试与移除条件见 `vendor/README.md`。根 `Cargo.lock` 是产品构建使用的锁文件。
+
 `CharScorer`，Core `sentence::SentenceScorer` trait 的实现：candle 加载字级 Transformer（GPT-2 风格 decoder，训练仓库（本地 `../train`，私有，不在本仓库）导出的
 `model.safetensors` + `config.json` + `vocab.json`），给「前文 + 整句」按字累加 log 概率；前文的每层 K / V 缓存（`PrefixCache`），
 同一段前文只算一次，每个候选只算自己那几个字（64 字前文 × 8 条 28 ms，Metal）。features `accelerate` / `metal` 换后端，壳用 `metal`。
