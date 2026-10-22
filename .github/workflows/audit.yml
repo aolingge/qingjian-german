@@ -1,19 +1,17 @@
-# 依赖已知漏洞（RustSec）：保留 Cargo.lock 变更检查和手动运行。
-# zip 8.6.0 的三个 RustSec 告警尚未修复，暂停每周重复运行；不忽略漏洞。
+# 依赖已知漏洞（RustSec）：每周检查，依赖或兼容补丁变化时也检查。
 name: audit
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'
   push:
-    paths: ['Cargo.lock']
+    paths: ['Cargo.lock', 'Cargo.toml', 'vendor/candle-core/**', '.github/workflows/audit.yml']
   pull_request:
-    paths: ['Cargo.lock']
+    paths: ['Cargo.lock', 'Cargo.toml', 'vendor/candle-core/**', '.github/workflows/audit.yml']
 
-# audit-check 要往提交上写 check run（checks: write）、发现漏洞时开 issue（issues: write）；少了 checks 会在 push 事件上报 "Resource not accessible by integration"
 permissions:
   contents: read
-  checks: write
-  issues: write
 
 jobs:
   audit:
@@ -23,6 +21,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          toolchain: 1.96.0
+
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
+      # 直接使用审计退出码；禁用 Issues 的 fork 也能报告真实漏洞。
+      - name: Audit dependencies
+        run: cargo audit
