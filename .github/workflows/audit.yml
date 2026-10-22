@@ -10,11 +10,8 @@ on:
   pull_request:
     paths: ['Cargo.lock', 'Cargo.toml', 'vendor/candle-core/**', '.github/workflows/audit.yml']
 
-# audit-check 要往提交上写 check run（checks: write）、发现漏洞时开 issue（issues: write）；少了 checks 会在 push 事件上报 "Resource not accessible by integration"
 permissions:
   contents: read
-  checks: write
-  issues: write
 
 jobs:
   audit:
@@ -24,6 +21,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          toolchain: 1.96.0
+
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
+      # 直接使用审计退出码；禁用 Issues 的 fork 也能报告真实漏洞。
+      - name: Audit dependencies
+        run: cargo audit
